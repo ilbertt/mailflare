@@ -1,4 +1,4 @@
-import type { MessageNavigationEntry } from "@/app/api/messages/navigation/types";
+import type { MessageNavigationEntry } from "@/server/handlers/api/messages/navigation/types";
 import type { MessageDetailNavigationState } from "./message-detail-navigation-types";
 
 const openedUnreadKey = "mailflare-navigation-opened-unread";

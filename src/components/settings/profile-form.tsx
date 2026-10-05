@@ -1,13 +1,13 @@
-"use client";
-
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { authFetch } from "@/lib/auth/client";
+
 import { dispatchProfileNameChanged } from "@/lib/profile/name-client";
 import { ProfileAvatarForm } from "./profile-avatar-form";
-import type { ProfileFormProps, ProfileFormResponse } from "./types";
+import type { ProfileFormProps } from "./types";
 
 export function ProfileForm({
   initialName,
@@ -25,12 +25,8 @@ export function ProfileForm({
 
   async function saveProfile(nextName: string, nextResetEmail: string) {
     try {
-      const res = await authFetch("/api/settings/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: nextName, resetEmail: nextResetEmail }),
-      });
-      const data = (await res.json()) as ProfileFormResponse;
+      const res = await apiRequest("/api/settings/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, json: { name: nextName, resetEmail: nextResetEmail } });
+      const data = await readApiResult(res);
 
       if (!res.ok) {
         throw new Error(

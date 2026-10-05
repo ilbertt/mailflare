@@ -1,8 +1,6 @@
-"use client";
-
 import { CheckSquare2 } from "lucide-react";
 import { useState } from "react";
-import type { BulkMessageAction } from "@/app/api/messages/bulk/types";
+import type { BulkMessageAction } from "@/server/handlers/api/messages/bulk/types";
 import { BulkMessageToolbar } from "./bulk-message-toolbar";
 import type { BulkMessageSelectionPaneProps } from "./types";
 import { runBulkMessageAction } from "./utils";

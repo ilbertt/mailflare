@@ -126,13 +126,13 @@ npm run dev
 
 Add your Cloudflare credentials to `.dev.vars`, then open [http://localhost:3000](http://localhost:3000). To load sample data, run `npm run db:seed` while the dev server is running.
 
-The Cloudflare app uses vinext and the Cloudflare Vite plugin, with local D1, R2, Queues, and Durable Objects. Remote bindings are off by default. To use Workers AI locally, log in with Wrangler, set `CLOUDFLARE_ACCOUNT_ID`, and run `CLOUDFLARE_REMOTE_BINDINGS=true npm run dev`.
+The frontend is a Vite SPA with TanStack Router file-based routing. A typed Hono API runs on both Cloudflare and Node. The Cloudflare app uses the Cloudflare Vite plugin, with local D1, R2, Queues, and Durable Objects. Remote bindings are off by default. To use Workers AI locally, log in with Wrangler, set `CLOUDFLARE_ACCOUNT_ID`, and run `CLOUDFLARE_REMOTE_BINDINGS=true npm run dev`.
 
 - `npm run build`: build the full Worker.
 - `npm run start`: preview that build locally.
 - `npm run deploy`: build and deploy.
 
-The Node/Docker runtime still uses Next.js with `build:node`, `start:node`, and `dev:node`.
+Use `npm run dev:node` for the Node backend and Vite frontend (ports 3001 and 3000), or `build:node` and `start:node` for production. `npm run typecheck`, `npm run lint`, and `npm test` validate the shared API contracts and app. See [SPA architecture](docs/router-spa.md).
 
 ## Documentation
 

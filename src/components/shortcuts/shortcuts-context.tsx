@@ -1,7 +1,5 @@
-"use client";
-
 import React, { createContext, useContext, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@tanstack/react-router";
 import {
   Inbox,
   Star,
@@ -143,49 +141,49 @@ export function ShortcutsProvider({
         key: "g i",
         label: "Go to Inbox",
         category: "Navigation",
-        action: () => router.push("/inbox"),
+        action: () => router.navigate({ to: "/inbox" }),
       },
       {
         key: "g s",
         label: "Go to Starred",
         category: "Navigation",
-        action: () => router.push("/starred"),
+        action: () => router.navigate({ to: "/starred" }),
       },
       {
         key: "g z",
         label: "Go to Snoozed",
         category: "Navigation",
-        action: () => router.push("/snoozed"),
+        action: () => router.navigate({ to: "/snoozed" }),
       },
       {
         key: "g t",
         label: "Go to Sent",
         category: "Navigation",
-        action: () => router.push("/sent"),
+        action: () => router.navigate({ to: "/sent" }),
       },
       {
         key: "g d",
         label: "Go to Drafts",
         category: "Navigation",
-        action: () => router.push("/drafts"),
+        action: () => router.navigate({ to: "/drafts" }),
       },
       {
         key: "g a",
         label: "Go to Archived",
         category: "Navigation",
-        action: () => router.push("/archived"),
+        action: () => router.navigate({ to: "/archived" }),
       },
       {
         key: "g !",
         label: "Go to Spam",
         category: "Navigation",
-        action: () => router.push("/spam"),
+        action: () => router.navigate({ to: "/spam" }),
       },
       {
         key: "g x",
         label: "Go to Trash",
         category: "Navigation",
-        action: () => router.push("/trash"),
+        action: () => router.navigate({ to: "/trash" }),
       },
       {
         key: "escape",
@@ -220,7 +218,7 @@ export function ShortcutsProvider({
         category: "Navigation",
         icon: Inbox,
         shortcut: "g i",
-        perform: () => router.push("/inbox"),
+        perform: () => router.navigate({ to: "/inbox" }),
       },
       {
         id: "nav-starred",
@@ -228,7 +226,7 @@ export function ShortcutsProvider({
         category: "Navigation",
         icon: Star,
         shortcut: "g s",
-        perform: () => router.push("/starred"),
+        perform: () => router.navigate({ to: "/starred" }),
       },
       {
         id: "nav-snoozed",
@@ -236,7 +234,7 @@ export function ShortcutsProvider({
         category: "Navigation",
         icon: Clock,
         shortcut: "g z",
-        perform: () => router.push("/snoozed"),
+        perform: () => router.navigate({ to: "/snoozed" }),
       },
       {
         id: "nav-sent",
@@ -244,7 +242,7 @@ export function ShortcutsProvider({
         category: "Navigation",
         icon: Send,
         shortcut: "g t",
-        perform: () => router.push("/sent"),
+        perform: () => router.navigate({ to: "/sent" }),
       },
       {
         id: "nav-drafts",
@@ -252,7 +250,7 @@ export function ShortcutsProvider({
         category: "Navigation",
         icon: FileText,
         shortcut: "g d",
-        perform: () => router.push("/drafts"),
+        perform: () => router.navigate({ to: "/drafts" }),
       },
       {
         id: "nav-archived",
@@ -260,7 +258,7 @@ export function ShortcutsProvider({
         category: "Navigation",
         icon: Archive,
         shortcut: "g a",
-        perform: () => router.push("/archived"),
+        perform: () => router.navigate({ to: "/archived" }),
       },
       {
         id: "nav-spam",
@@ -268,7 +266,7 @@ export function ShortcutsProvider({
         category: "Navigation",
         icon: ShieldAlert,
         shortcut: "g !",
-        perform: () => router.push("/spam"),
+        perform: () => router.navigate({ to: "/spam" }),
       },
       {
         id: "nav-trash",
@@ -276,7 +274,7 @@ export function ShortcutsProvider({
         category: "Navigation",
         icon: Trash2,
         shortcut: "g x",
-        perform: () => router.push("/trash"),
+        perform: () => router.navigate({ to: "/trash" }),
       },
       {
         id: "settings-account",
@@ -284,7 +282,7 @@ export function ShortcutsProvider({
         subtitle: "Profile, password & preferences",
         category: "Settings",
         icon: Settings,
-        perform: () => router.push("/settings/account"),
+        perform: () => router.navigate({ to: "/settings/account" }),
       },
       {
         id: "show-help",

@@ -1,7 +1,5 @@
-"use client";
-
 import { createElement, useState, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@tanstack/react-router";
 import { Archive, Ban, BellOff, Clock, FileCode2, Forward, Mail, MailOpen, MoreVertical, Reply, ReplyAll, ShieldAlert, Trash2 } from "lucide-react";
 import { useCompose } from "@/components/compose/compose-context";
 import { MessageSourceDialog } from "@/components/messages/message-source-dialog";
@@ -10,7 +8,7 @@ import { useIsMobile } from "@/components/sidebar-mobile-utils";
 import { useHotkeys, useShortcuts } from "@/components/shortcuts";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import type { BulkMessageAction } from "@/app/api/messages/bulk/types";
+import type { BulkMessageAction } from "@/server/handlers/api/messages/bulk/types";
 import type { MessageActionsProps, ReplyMode } from "./types";
 import { getPermanentDeleteConfirmText, supportsPermanentDelete } from "@/lib/messages/permanent-delete-utils";
 import {
@@ -64,8 +62,8 @@ export function MessageActions({
 		try {
 			await runSingleMessageAction(messageId, action);
 			const redirect = getMessageActionRedirect(action, direction);
-			if (redirect) router.push(redirect);
-			router.refresh();
+			if (redirect) router.navigate({ href: redirect });
+			router.invalidate();
 		} catch {
 			setError("Could not update message");
 		} finally {
@@ -83,8 +81,8 @@ export function MessageActions({
 		setError(null);
 		try {
 			await runSingleMessageAction(messageId, "delete");
-			router.push(getMessageBackHref(direction, status));
-			router.refresh();
+			router.navigate({ href: getMessageBackHref(direction, status) });
+			router.invalidate();
 		} catch {
 			setError("Could not delete message");
 			setPendingAction(null);
@@ -127,13 +125,13 @@ export function MessageActions({
 		}
 	}, [mailboxId, senderAddress, ownAddress, subject, bodyText, bodyHtml, messageMeta?.createdAt, replyable, ownAddresses, openDraftComposer]);
 
-	const shortcuts = useMemo(
+	const shortcuts = useMemo<import("@/components/shortcuts/types").ShortcutDefinition[]>(
 		() => [
 			{
 				key: "e",
 				label: "Archive Message",
 				category: "Actions" as const,
-				action: () => {
+				action: (): void => {
 					if (status !== "archived") void runAction("archive");
 				},
 			},
@@ -141,7 +139,7 @@ export function MessageActions({
 				key: "y",
 				label: "Archive Message",
 				category: "Actions" as const,
-				action: () => {
+				action: (): void => {
 					if (status !== "archived") void runAction("archive");
 				},
 			},
@@ -149,7 +147,7 @@ export function MessageActions({
 				key: "#",
 				label: "Move to Trash",
 				category: "Actions" as const,
-				action: () => {
+				action: (): void => {
 					if (status !== "trash") void runAction("trash");
 				},
 			},
@@ -163,7 +161,7 @@ export function MessageActions({
 				key: "!",
 				label: "Report Spam",
 				category: "Actions" as const,
-				action: () => {
+				action: (): void => {
 					if (status !== "spam" && direction === "inbound") void runAction("spam");
 				},
 			},
@@ -171,7 +169,7 @@ export function MessageActions({
 				key: "u",
 				label: "Back to List",
 				category: "Navigation" as const,
-				action: () => router.back(),
+				action: () => router.history.back(),
 			},
 		],
 		[status, direction, runAction, handleReply, router]
@@ -235,8 +233,8 @@ export function MessageActions({
 		try {
 			await blockMessageContact({ mailboxId, senderAddress });
 			await runSingleMessageAction(messageId, "trash");
-			router.push("/trash");
-			router.refresh();
+			router.navigate({ to: "/trash" });
+			router.invalidate();
 		} catch (blockError) {
 			setError(blockError instanceof Error ? blockError.message : "Could not block contact");
 		} finally {

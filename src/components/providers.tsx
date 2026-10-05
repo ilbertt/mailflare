@@ -1,5 +1,3 @@
-"use client";
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { clearMailboxClientState } from "@/components/mailbox-provider-utils";
@@ -41,6 +39,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
 		window.addEventListener(AUTH_SESSION_CHANGED_EVENT, resetUserScopedState);
 		return () => window.removeEventListener(AUTH_SESSION_CHANGED_EVENT, resetUserScopedState);
 	}, [client]);
+
+	useEffect(() => {
+		const refreshTimeZone = (event: StorageEvent) => {
+			if (event.key === "mailflare-user-time-zone") window.location.reload();
+		};
+		window.addEventListener("storage", refreshTimeZone);
+		return () => window.removeEventListener("storage", refreshTimeZone);
+	}, []);
 
 	return (
 		<QueryClientProvider client={client}>

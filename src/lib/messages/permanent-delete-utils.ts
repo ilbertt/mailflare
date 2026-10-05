@@ -1,4 +1,4 @@
-import type { PermanentDeleteFolder } from "@/app/api/messages/bulk/types";
+import type { PermanentDeleteFolder } from "@/server/handlers/api/messages/bulk/types";
 
 const folderLabels: Record<PermanentDeleteFolder, string> = { trash: "Trash", spam: "Spam" };
 

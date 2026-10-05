@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { ChevronLeft, Wrench } from "lucide-react";
 import type { AgentDraftAction, AgentEmailReference, AgentMessage, AgentTurnProps } from "./types";

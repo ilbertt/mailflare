@@ -1,5 +1,3 @@
-"use client";
-
 import { Switch } from "@/components/ui/switch";
 import { useTwoColumnReading } from "@/components/messages/use-two-column-reading";
 

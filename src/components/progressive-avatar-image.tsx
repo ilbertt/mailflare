@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import type { ProgressiveAvatarImageProps } from "./progressive-avatar-image-types";
 import { getAvatarPreviewUrl } from "./progressive-avatar-image-utils";
@@ -45,8 +43,7 @@ export function ProgressiveAvatarImage({ src, alt, className, onError }: Progres
 	if (failedFor === src) return null;
 
 	return (
-		// eslint-disable-next-line @next/next/no-img-element
-		<img
+				<img
 			ref={imageRef}
 			src={showFull ? src : getAvatarPreviewUrl(src)}
 			alt={alt}

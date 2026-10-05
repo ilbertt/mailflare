@@ -1,4 +1,7 @@
-import { authFetch } from "@/lib/auth/client";
+import { readApiJson } from "@/lib/api/json";
+
+import { apiRequest } from "@/lib/api/request";
+
 import type { ApiKeyScope } from "@/lib/api/scopes";
 import type { ManagedApiKey, McpKeyScope } from "./api-keys-settings-types";
 
@@ -18,10 +21,6 @@ export const STANDARD_KEY_SCOPES: { value: ApiKeyScope; label: string; descripti
 	{ value: "calendar:write", label: "Manage calendar", description: "Create, update, and delete your calendar events through the API." },
 ];
 
-async function responseData(response: Response): Promise<{ error?: unknown; key?: string; apiKeys?: ManagedApiKey[] }> {
-	return response.json().catch(() => ({}));
-}
-
 export function keyPermissions(key: ManagedApiKey): string[] {
 	try {
 		const scopes: unknown = JSON.parse(key.scopes);
@@ -32,27 +31,25 @@ export function keyPermissions(key: ManagedApiKey): string[] {
 }
 
 export async function loadManagedApiKeys(): Promise<ManagedApiKey[]> {
-	const response = await authFetch("/api/api-keys");
-	const data = await responseData(response);
+	const response = await apiRequest("/api/api-keys", { method: "GET" });
+	const data = await readApiJson(response);
 	if (!response.ok || !data.apiKeys) throw new Error(typeof data.error === "string" ? data.error : "Could not load API keys");
 	return data.apiKeys;
 }
 
 export async function createManagedApiKey(input: { name: string; mcpAllowed: boolean; scopes: ApiKeyScope[] | McpKeyScope[]; mailboxIds: string[] }): Promise<string> {
-	const response = await authFetch(input.mcpAllowed ? "/api/agent/mcp-keys" : "/api/api-keys", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ name: input.name, scopes: input.scopes, mailboxIds: input.mailboxIds }),
-	});
-	const data = await responseData(response);
+	const response = input.mcpAllowed
+        ? await apiRequest("/api/agent/mcp-keys", { method: "POST", json: { name: input.name, scopes: input.scopes.filter((scope): scope is McpKeyScope => scope.startsWith("mcp:")), mailboxIds: input.mailboxIds } })
+        : await apiRequest("/api/api-keys", { method: "POST", json: { name: input.name, scopes: input.scopes.filter((scope): scope is ApiKeyScope => !scope.startsWith("mcp:")), mailboxIds: input.mailboxIds } });
+	const data = await readApiJson(response);
 	if (!response.ok || !data.key) throw new Error(typeof data.error === "string" ? data.error : "Could not create API key");
 	return data.key;
 }
 
 export async function revokeManagedApiKey(id: string): Promise<void> {
-	const response = await authFetch(`/api/api-keys?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+	const response = await apiRequest("/api/api-keys", { method: "DELETE", query: `id=${encodeURIComponent(id)}` });
 	if (!response.ok) {
-		const data = await responseData(response);
-		throw new Error(typeof data.error === "string" ? data.error : "Could not revoke API key");
+		await readApiJson(response);
+		throw new Error("Could not revoke API key");
 	}
 }

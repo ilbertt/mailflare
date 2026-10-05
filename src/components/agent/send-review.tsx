@@ -1,7 +1,7 @@
-"use client";
-
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import { useState } from "react";
-import { authFetch } from "@/lib/auth/client";
+
 import { formatUserDate } from "@/lib/time/utils";
 import { htmlToPlainText } from "@/components/compose/rich-text-utils";
 import type { SendReviewProps } from "./send-review-types";
@@ -13,8 +13,8 @@ export function SendReview({ approvalId, snapshot, onClose, onSent }: SendReview
 		setBusy(true);
 		setError(null);
 		try {
-			const response = await authFetch(`/api/agent/approvals/${approvalId}/confirm`, { method: "POST" });
-			const result = await response.json() as { status?: string; messageId?: string; error?: string };
+			const response = await apiRequest("/api/agent/approvals/:id/confirm", { method: "POST", param: { id: approvalId } });
+			const result = await readApiResult(response);
 			if (!response.ok || result.status !== "sent" || !result.messageId) throw new Error(result.error || "Delivery needs review");
 			window.dispatchEvent(new Event("mailflare:messages-changed"));
 			onSent?.(result.messageId);

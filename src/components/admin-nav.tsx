@@ -1,5 +1,3 @@
-"use client";
-
 import {
   DatabaseBackup,
   Globe2,

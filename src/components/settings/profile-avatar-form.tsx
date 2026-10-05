@@ -1,8 +1,7 @@
-"use client";
-
+import { apiRequest } from "@/lib/api/request";
 import { useEffect, useRef, useState } from "react";
 import { Camera, LoaderCircle, User } from "lucide-react";
-import { authFetch } from "@/lib/auth/client";
+
 import { getAvatarColorStyle } from "@/lib/avatar-colors";
 import {
 	dispatchProfileAvatarChanged,
@@ -11,7 +10,7 @@ import {
 import { dispatchMailboxAvatarChanged } from "@/lib/mailboxes/avatar-client";
 import { Input } from "@/components/ui/input";
 import { ProgressiveAvatarImage } from "@/components/progressive-avatar-image";
-import type { ProfileAvatarFormProps, ProfileAvatarSessionResponse } from "./types";
+import type { ProfileAvatarFormProps } from "./types";
 import {
 	getMailboxProfileAvatarUrl,
 	PROFILE_AVATAR_ACCEPT,
@@ -41,10 +40,10 @@ export function ProfileAvatarForm({
 			return;
 		}
 
-		authFetch("/api/auth/me", { redirectOnUnauthorized: false })
+		apiRequest("/api/auth/me", { method: "GET", redirectOnUnauthorized: false })
 			.then((response) => (response.ok ? response.json() : null))
 			.then((data) => {
-				const authData = data as ProfileAvatarSessionResponse | null;
+				const authData = data;
 				setHasAvatar(!!authData?.user?.hasAvatar);
 			})
 			.catch(() => setHasAvatar(false));

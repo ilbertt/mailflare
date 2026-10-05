@@ -1,11 +1,11 @@
-import { authFetch } from "@/lib/auth/client";
-import type { LicenseIndicatorResponse } from "./license-indicator-types";
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 
 export async function loadLicenseIndicatorStatus() {
 	try {
-		const response = await authFetch("/api/licenses", { redirectOnUnauthorized: false });
+		const response = await apiRequest("/api/licenses", { method: "GET", redirectOnUnauthorized: false });
 		if (!response.ok) return null;
-		const data = (await response.json()) as LicenseIndicatorResponse;
+		const data = await readApiResult(response);
 		return data.license ?? null;
 	} catch {
 		return null;

@@ -1,5 +1,3 @@
-"use client";
-
 import { Switch } from "@/components/ui/switch";
 import { useConversationView } from "@/components/messages/use-conversation-view";
 import { useLatestMessagesFirst } from "@/components/messages/use-latest-messages-first";

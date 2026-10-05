@@ -1,8 +1,7 @@
-"use client";
-
+import { useLocation } from "@tanstack/react-router";
 import clsx from "clsx";
 import { ChevronUp } from "lucide-react";
-import { usePathname } from "next/navigation";
+
 import { useEffect, useState, type ReactNode } from "react";
 import { useIsMobile } from "./sidebar-mobile-utils";
 
@@ -16,7 +15,7 @@ type SectionNavSheetProps = {
 // Inline column from md up; on phones a bottom sheet opened from a floating pill showing the current section.
 export function SectionNavSheet({ label, title, children, className }: SectionNavSheetProps) {
 	const mobile = useIsMobile();
-	const pathname = usePathname();
+	const pathname = useLocation({ select: (location) => location.pathname });
 	const [open, setOpen] = useState(false);
 	const hidden = mobile && !open;
 

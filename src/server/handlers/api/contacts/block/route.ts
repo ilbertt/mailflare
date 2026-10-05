@@ -1,0 +1,32 @@
+import type { ApiRequest } from "@/shared/api-request";
+import { ApiResponse } from "@/server/http/response";
+import { getDb } from "@/db";
+import { requireUser } from "@/lib/auth/cookies";
+import { getEnv } from "@/lib/cloudflare";
+import { blockContact } from "@/lib/contacts/service";
+import { getMailboxAccessLevel } from "@/lib/mailboxes/access";
+import type { BlockContactRequest } from "./types";
+
+export async function POST(request: ApiRequest<POSTInput>) {
+	const env = getEnv();
+	const user = await requireUser(env, request);
+	const body = (await request.json()) as BlockContactRequest;
+	if (!body.mailboxId || !body.address?.trim()) {
+		return ApiResponse.json({ error: "Mailbox and contact are required" }, { status: 400 });
+	}
+
+	const access = await getMailboxAccessLevel(getDb(env), user, body.mailboxId);
+	if (!access?.canManage) {
+		return ApiResponse.json({ error: "Mailbox not found" }, { status: 404 });
+	}
+
+	const contact = await blockContact(env, {
+		userId: access.mailbox.userId,
+		mailboxId: access.mailbox.id,
+		domainId: access.mailbox.domainId,
+		address: body.address,
+	});
+	return ApiResponse.json({ contact });
+}
+
+export type POSTInput = BlockContactRequest;

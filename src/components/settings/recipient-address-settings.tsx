@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useShowFullRecipientAddresses } from "@/components/messages/use-show-full-recipient-addresses";
 import { Switch } from "@/components/ui/switch";

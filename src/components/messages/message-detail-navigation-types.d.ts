@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { MessageNavigationEntry } from "@/app/api/messages/navigation/types";
+import type { MessageNavigationEntry } from "@/server/handlers/api/messages/navigation/types";
 import type { MessageFolderConfig } from "./types";
 
 export type MessageDetailNavigationProviderProps = {

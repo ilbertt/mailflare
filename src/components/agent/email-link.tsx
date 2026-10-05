@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/routing/link";
 import type { AgentEmailLinkProps } from "./types";
 import { agentDraftIdForEmail, agentEmailHref } from "./utils";
 

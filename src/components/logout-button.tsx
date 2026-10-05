@@ -1,6 +1,4 @@
-"use client";
-
-import { useRouter } from "next/navigation";
+import { useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { logoutClientSession } from "@/lib/auth/logout";
 
@@ -12,8 +10,8 @@ export function LogoutButton() {
 			className="w-full"
 			onClick={async () => {
 				const switched = await logoutClientSession();
-				router.replace(switched ? "/inbox" : "/login");
-				router.refresh();
+				router.navigate({ href: switched ? "/inbox" : "/login", replace: true });
+				router.invalidate();
 			}}
 		>
 			Log out

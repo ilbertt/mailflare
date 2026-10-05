@@ -1,13 +1,12 @@
-"use client";
+import { useLocation } from "@tanstack/react-router";
+import Link from "@/components/routing/link";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { SectionNavSheet } from "../section-nav-sheet";
 import { isActiveSettingsPath, settingsNavSections } from "./settings-nav-utils";
 
 export function SettingsNav() {
-	const pathname = usePathname();
+	const pathname = useLocation({ select: (location) => location.pathname });
 	const currentLabel = settingsNavSections.flatMap((section) => section.items).find((item) => isActiveSettingsPath(pathname, item.href))?.label ?? "Settings";
 
 	return (

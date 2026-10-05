@@ -1,13 +1,12 @@
-"use client";
-
+import { readApiJson } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useSelectedMailbox } from "@/components/mailbox-provider";
-import { authFetch } from "@/lib/auth/client";
-import type { MessageNavigationResponse } from "@/app/api/messages/navigation/types";
+
 import type { MessageDetailNavigationContextValue, MessageDetailNavigationProps, MessageDetailNavigationProviderProps, MessageDetailNavigationSnapshot, OpenedUnreadMessages } from "./message-detail-navigation-types";
 import { getMessageDetailNavigationState, takeOpenedUnreadMessage } from "./message-detail-navigation-utils";
 import { useConversationView } from "./use-conversation-view";
@@ -42,10 +41,10 @@ export function MessageDetailNavigationProvider({ children, config }: MessageDet
 		if (config.folderId) params.set("folderId", config.folderId);
 		if (mailboxId) params.set("mailboxId", mailboxId);
 		if (grouped) params.set("group", "thread");
-		void authFetch(`/api/messages/navigation?${params.toString()}`)
+		void apiRequest("/api/messages/navigation", { method: "GET", query: `${params.toString()}` })
 			.then((response) => {
 				if (!response.ok) throw new Error("Unable to load message navigation");
-				return response.json() as Promise<MessageNavigationResponse>;
+				return readApiJson(response);
 			})
 			.then((response) => {
 				if (!cancelled) setSnapshot({ key, entries: response.messages });
@@ -80,12 +79,12 @@ export function MessageDetailNavigation({ messageId, unread }: MessageDetailNavi
 			</span>
 			)}
 			<Tooltip label="Newer email">
-				<Button type="button" variant="ghost" size="roundedSM" aria-label="Newer email" disabled={!previousId} onClick={() => previousId && router.push(`${context.hrefPrefix}/${previousId}`)}>
+				<Button type="button" variant="ghost" size="roundedSM" aria-label="Newer email" disabled={!previousId} onClick={() => previousId && router.navigate({ href: `${context.hrefPrefix}/${previousId}` })}>
 					<ChevronLeft size={18} />
 				</Button>
 			</Tooltip>
 			<Tooltip label="Older email">
-				<Button type="button" variant="ghost" size="roundedSM" aria-label="Older email" disabled={!nextId} onClick={() => nextId && router.push(`${context.hrefPrefix}/${nextId}`)}>
+				<Button type="button" variant="ghost" size="roundedSM" aria-label="Older email" disabled={!nextId} onClick={() => nextId && router.navigate({ href: `${context.hrefPrefix}/${nextId}` })}>
 					<ChevronRight size={18} />
 				</Button>
 			</Tooltip>

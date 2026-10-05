@@ -1,0 +1,17 @@
+import { ApiResponse } from "@/server/http/response";
+import { runDelivery } from "@/lib/email/webhooks";
+import { loadOwnedWebhook } from "../../../utils";
+import type { WebhookDeliveryRouteParams } from "../../../types";
+
+export async function POST(request: Request, { params }: WebhookDeliveryRouteParams) {
+	const { id, deliveryId } = await params;
+	const loaded = await loadOwnedWebhook(request, id);
+	if (loaded.error) return loaded.error;
+
+	const result = await runDelivery(loaded.env, deliveryId, { userId: loaded.user.id });
+	if (!result) {
+		return ApiResponse.json({ error: "Delivery not found" }, { status: 404 });
+	}
+
+	return ApiResponse.json({ status: result.status });
+}

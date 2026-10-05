@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useState } from "react";
 import { loadShowFullRecipientAddresses, updateShowFullRecipientAddresses } from "./use-show-full-recipient-addresses-utils";
 

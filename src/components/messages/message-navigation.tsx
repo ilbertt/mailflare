@@ -1,14 +1,13 @@
-"use client";
-
+import { useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "@tanstack/react-router";
 import type { MouseEvent } from "react";
 import { primeMessageDetail } from "@/lib/messages/detail-cache";
 import type { Message } from "@/hooks/types";
 import type { MessageNavigationState } from "./message-navigation-types";
 
 export function useMessageNavigation(href: string, message: Message): MessageNavigationState {
-	const pathname = usePathname();
+	const pathname = useLocation({ select: (location) => location.pathname });
 	const router = useRouter();
 	const [progress, setProgress] = useState<number | null>(null);
 
@@ -25,7 +24,7 @@ export function useMessageNavigation(href: string, message: Message): MessageNav
 		primeMessageDetail({ ...message, read: markRead || message.read });
 		setProgress(12);
 		try {
-			router.push(href);
+			router.navigate({ href: href });
 		} catch {
 			setProgress(null);
 		}

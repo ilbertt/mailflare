@@ -1,4 +1,5 @@
-import vinextHandler from "vinext/server/fetch-handler";
+import { app, isBackendPath } from "./src/server/app";
+import { getSecurityHeaders } from "./src/lib/security/headers";
 import {
 	processInboundMessage,
 	storeRawToR2,
@@ -44,7 +45,11 @@ export default {
 			return hub.fetch(hubRequest);
 		}
 
-		return vinextHandler.fetch(request, env, ctx);
+		if (isBackendPath(url.pathname)) return app.fetch(request, env, ctx);
+		const asset = await env.ASSETS.fetch(request);
+		const response = new Response(asset.body, asset);
+		for (const { key, value } of getSecurityHeaders()) response.headers.set(key, value);
+		return response;
 	},
 
 	async email(message: ForwardableEmailMessage, env: CloudflareEnv, ctx: ExecutionContext) {

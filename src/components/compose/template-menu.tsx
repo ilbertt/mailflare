@@ -1,9 +1,9 @@
-"use client";
-
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import { useEffect, useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronRight, FileText, Plus, Trash2 } from "lucide-react";
-import { authFetch } from "@/lib/auth/client";
+
 import { textToHtml } from "./rich-text-utils";
 import type { ComposeTemplate, TemplateMenuProps } from "./template-types";
 
@@ -13,14 +13,14 @@ export function TemplateMenu({ onApply, onNew }: TemplateMenuProps) {
 	const [templates, setTemplates] = useState<ComposeTemplate[]>([]);
 
 	useEffect(() => {
-		void authFetch("/api/templates", { cache: "no-store" })
+		void apiRequest("/api/templates", { method: "GET", cache: "no-store" })
 			.then(async (response) => {
-				if (response.ok) setTemplates(((await response.json()) as { templates: ComposeTemplate[] }).templates);
+				if (response.ok) setTemplates((await readApiResult(response)).templates);
 			})
 			.catch(() => {});
 	}, []);
 	async function remove(id: string) {
-		const response = await authFetch(`/api/templates/${id}`, { method: "DELETE" });
+		const response = await apiRequest("/api/templates/:id", { method: "DELETE", param: { id: id } });
 		if (response.ok) setTemplates((current) => current.filter((template) => template.id !== id));
 	}
 

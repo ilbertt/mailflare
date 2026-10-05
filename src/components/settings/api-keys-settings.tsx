@@ -1,5 +1,3 @@
-"use client";
-
 import { mobilePrimaryActionAboveNavClass } from "@/components/page-header-utils";
 import { useEffect, useState } from "react";
 import { Copy, KeyRound, Plus, Trash2 } from "lucide-react";

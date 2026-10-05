@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useShortcuts } from "@/components/shortcuts";
 import { Switch } from "@/components/ui/switch";

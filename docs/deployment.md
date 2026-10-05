@@ -76,7 +76,7 @@ npm install
 npm run deploy:local
 ```
 
-The local deploy command builds with vinext and uploads the complete Worker with Wrangler. The Cloudflare Vite plugin generates `dist/server/wrangler.json` and redirects Wrangler to that build. It does not modify D1. The complete Worker is required because `worker.ts` also handles inbound email, queues, scheduled backups, and the real-time Durable Object.
+The local deploy command builds the TanStack Router SPA and Hono API and uploads the complete Worker with Wrangler. The Cloudflare Vite plugin generates `dist/<worker-name>/wrangler.json` and redirects Wrangler to that build. It does not modify D1. The complete Worker is required because `worker.ts` also handles inbound email, queues, scheduled backups, and the real-time Durable Object.
 
 For manual recovery, pending migrations can still be applied with:
 

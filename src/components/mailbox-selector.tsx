@@ -1,14 +1,15 @@
-"use client";
-
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { CalendarDays, Check, ChevronDown, Inbox, LogOut, Settings, ShieldCheck, UserPlus, UserRound, UsersRound } from "lucide-react";
+import { Link as RouteLink } from "@tanstack/react-router";
+import { apiRequest } from "@/lib/api/request";
+import { useLocation } from "@tanstack/react-router";
+import Link from "@/components/routing/link";
+import { useRouter } from "@tanstack/react-router";
+import { CalendarDays, Check, ChevronDown, Inbox, LogOut, Settings, ShieldCheck, UserPlus, UsersRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSelectedMailbox } from "@/components/mailbox-provider";
 import { ProgressiveAvatarImage } from "@/components/progressive-avatar-image";
 import { isIdentityMailbox } from "@/components/mailbox-provider-utils";
 import { useMessageCounts } from "@/hooks/use-message-counts";
-import { authFetch } from "@/lib/auth/client";
+
 import { getAvatarColorStyle } from "@/lib/avatar-colors";
 import { logoutClientSession } from "@/lib/auth/logout";
 import { fetchBrowserAccounts, switchBrowserAccount, type BrowserAccount } from "@/lib/auth/accounts-client";
@@ -114,7 +115,7 @@ function MailboxAccountRow({ mailbox, unread, avatarUrl, onSelect }: MailboxAcco
 
 export function MailboxSelector({ initialUser }: MailboxSelectorProps = {}) {
 	const { selectedMailbox, setSelectedMailbox, mailboxes, isLoading } = useSelectedMailbox();
-	const pathname = usePathname();
+	const pathname = useLocation({ select: (location) => location.pathname });
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [user, setUser] = useState<MailboxSelectorUser | null>(initialUser ?? null);
@@ -148,10 +149,10 @@ export function MailboxSelector({ initialUser }: MailboxSelectorProps = {}) {
 	}, []);
 
 	useEffect(() => {
-		authFetch("/api/auth/me", { redirectOnUnauthorized: false })
+		apiRequest("/api/auth/me", { method: "GET", redirectOnUnauthorized: false })
 			.then((response) => (response.ok ? response.json() : null))
 			.then((data) => {
-				const authData = data as { user?: MailboxSelectorUser } | null;
+				const authData = data;
 				setUser(authData?.user ?? null);
 				setHasAvatar(!!authData?.user?.hasAvatar);
 			})
@@ -224,19 +225,19 @@ export function MailboxSelector({ initialUser }: MailboxSelectorProps = {}) {
 	async function logout() {
 		const switched = await logoutClientSession();
 		setOpen(false);
-		router.replace(switched ? "/inbox" : "/login");
-		router.refresh();
+		router.navigate({ href: switched ? "/inbox" : "/login", replace: true });
+		router.invalidate();
 	}
 
 	async function switchAccount(userId: string) {
 		const error = await switchBrowserAccount(userId);
 		setOpen(false);
 		if (error) {
-			router.push("/login?add=1");
+			router.navigate({ href: "/login?add=1" });
 			return;
 		}
-		router.replace("/inbox");
-		router.refresh();
+		router.navigate({ to: "/inbox", replace: true });
+		router.invalidate();
 	}
 
 	return (
@@ -290,30 +291,30 @@ export function MailboxSelector({ initialUser }: MailboxSelectorProps = {}) {
 							</div>
 							<Check className="h-5 w-5 shrink-0 text-blue-600" />
 						</div>
-						<Link
-							href="/inbox"
+						<RouteLink
+							to="/inbox"
 							onClick={() => setOpen(false)}
 							className="mt-4 flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-[#f2f6fc]"
 						>
 							<Inbox size={18} className="text-neutral-600" />
 							Inbox
-						</Link>
-						<Link
-							href="/calendar"
+						</RouteLink>
+						<RouteLink
+							to="/calendar"
 							onClick={() => setOpen(false)}
 							className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-[#f2f6fc]"
 						>
 							<CalendarDays size={18} className="text-neutral-600" />
 							Calendar
-						</Link>
-						<Link
-							href="/settings/account"
+						</RouteLink>
+						<RouteLink
+							to="/settings/account"
 							onClick={() => setOpen(false)}
 							className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-[#f2f6fc]"
 						>
 							<Settings size={18} className="text-neutral-600" />
 							Settings
-						</Link>
+						</RouteLink>
 						{otherMailboxes.length > 0 && (
 							<div className="mt-3 border-t border-neutral-100 pt-2">
 								<button
@@ -336,7 +337,7 @@ export function MailboxSelector({ initialUser }: MailboxSelectorProps = {}) {
 											onSelect={() => {
 												setSelectedMailbox(mailbox);
 												setOpen(false);
-												router.push("/inbox");
+												router.navigate({ to: "/inbox" });
 											}}
 										/>
 									);
@@ -374,15 +375,15 @@ export function MailboxSelector({ initialUser }: MailboxSelectorProps = {}) {
 
 					<div className="mt-2 overflow-hidden rounded-[22px] bg-white">
 						{user?.role === "admin" && (
-							<Link
-								href="/admin"
+							<RouteLink
+								to="/admin"
 								onClick={() => setOpen(false)}
 								className={`flex items-center gap-3 border-t border-neutral-100 px-5 py-4 text-sm font-medium text-neutral-800 hover:bg-[#f2f6fc] ${adminActive ? "bg-blue-50" : ""}`}
 							>
 								<ShieldCheck size={18} className="text-neutral-600" />
 								Admin
 								{adminActive && <Check className="ml-auto h-4 w-4 text-blue-600" />}
-							</Link>
+							</RouteLink>
 						)}
 						<Link
 							href="/login?add=1"

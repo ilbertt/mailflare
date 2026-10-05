@@ -1,7 +1,7 @@
-"use client";
-
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import { useEffect, useState } from "react";
-import { authFetch } from "@/lib/auth/client";
+
 import { Switch } from "@/components/ui/switch";
 
 export function SpamFilterSettings() {
@@ -10,9 +10,9 @@ export function SpamFilterSettings() {
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		void authFetch("/api/settings/spam")
+		void apiRequest("/api/settings/spam", { method: "GET" })
 			.then(async (response) => {
-				const data = await response.json() as { enabled?: boolean; error?: string };
+				const data = await readApiResult(response);
 				if (!response.ok) throw new Error(data.error ?? "Failed to load spam filter settings");
 				setEnabled(data.enabled !== false);
 			})
@@ -26,12 +26,8 @@ export function SpamFilterSettings() {
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await authFetch("/api/settings/spam", {
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ enabled: nextEnabled }),
-			});
-			const data = await response.json() as { enabled?: boolean; error?: string };
+			const response = await apiRequest("/api/settings/spam", { method: "PATCH", headers: { "Content-Type": "application/json" }, json: { enabled: nextEnabled } });
+			const data = await readApiResult(response);
 			if (!response.ok) throw new Error(data.error ?? "Failed to update spam filter settings");
 			setEnabled(data.enabled !== false);
 		} catch (nextError) {

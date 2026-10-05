@@ -1,4 +1,4 @@
-import type { MessageAttachment } from "@/app/(dashboard)/inbox/[messageId]/types";
+import type { MessageAttachment } from "@/components/screens/(dashboard)/inbox/[messageId]/types";
 
 export interface MessageAttachmentViewerProps {
 	attachment: MessageAttachment | null;

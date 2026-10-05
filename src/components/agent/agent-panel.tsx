@@ -1,11 +1,12 @@
-"use client";
-
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
+import { useLocation } from "@tanstack/react-router";
 import "./style.scss"
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
-import { ArrowLeft, FileText, ListChecks, LoaderCircle, Maximize2, Minimize2, Pause, PauseCircle, PenLine, Plus, Send, Settings2, Sparkles, Square, Trash2, X } from "lucide-react";
-import { authFetch } from "@/lib/auth/client";
+
+import { ArrowLeft, FileText, ListChecks, LoaderCircle, Maximize2, Minimize2, Pause, PenLine, Plus, Send, Settings2, Sparkles, Trash2, X } from "lucide-react";
+
 import { getUserTimeZone } from "@/lib/time/utils";
 import { useSelectedMailbox } from "@/components/mailbox-provider";
 import { useCompose } from "@/components/compose/compose-context";
@@ -17,12 +18,12 @@ import { QueuedAgentMessages } from "./queued-messages";
 import { SendReview } from "./send-review";
 import type { ReviewSnapshot } from "./send-review-types";
 import { approveAgentAction, requestDraftReview } from "./client-actions";
-import type { AgentConversation, AgentConversationsResponse, AgentErrorResponse, AgentEvent, AgentHistoryResponse, AgentJob, AgentJobsResponse, AgentMessage, AgentPanelProps, AgentPanelView, AgentSettings, AgentSettingsResponse, QueuedAgentMessage } from "./types";
+import type { AgentConversation, AgentEvent, AgentJob, AgentMessage, AgentPanelProps, AgentPanelView, AgentSettings, QueuedAgentMessage } from "./types";
 import { activeAgentTool, activeAgentToolLabel, appendAgentReasoning, consumeAgentStream, editQueuedAgentMessage, enqueueAgentMessage, groupAgentMessages, isAgentScrollAtBottom, markAgentDraftSent, normalizeAgentHistory, readAgentConversationId, removeQueuedAgentMessage, resizeAgentInput, saveAgentConversationId, shouldSubmitAgentInput, steerQueuedAgentMessage, uniqueAgentDraftActions } from "./utils";
 
 export function AgentPanel({ open, fullSize, onClose, onToggleFullSize }: AgentPanelProps) {
 	const { selectedMailbox } = useSelectedMailbox();
-	const pathname = usePathname();
+	const pathname = useLocation({ select: (location) => location.pathname });
 	const { openDraftComposer } = useCompose();
 	const [view, setView] = useState<AgentPanelView>("chat");
 	const [settings, setSettings] = useState<AgentSettings | null>(null);
@@ -67,17 +68,17 @@ export function AgentPanel({ open, fullSize, onClose, onToggleFullSize }: AgentP
 	const refresh = useCallback(async () => {
 		if (!mailboxId) return;
 		const [settingsResponse, conversationsResponse, jobsResponse] = await Promise.all([
-			authFetch(`/api/agent/settings?mailboxId=${encodeURIComponent(mailboxId)}`),
-			authFetch(`/api/agent/conversations?mailboxId=${encodeURIComponent(mailboxId)}`),
-			authFetch(`/api/agent/jobs?mailboxId=${encodeURIComponent(mailboxId)}`),
+			apiRequest("/api/agent/settings", { method: "GET", query: `mailboxId=${encodeURIComponent(mailboxId)}` }),
+			apiRequest("/api/agent/conversations", { method: "GET", query: `mailboxId=${encodeURIComponent(mailboxId)}` }),
+			apiRequest("/api/agent/jobs", { method: "GET", query: `mailboxId=${encodeURIComponent(mailboxId)}` }),
 		]);
 		if (!settingsResponse.ok) {
-			const data = await settingsResponse.json().catch(() => ({})) as AgentErrorResponse;
+			const data = await readApiResult(settingsResponse).catch(() => ({ error: undefined }));
 			setError(data.error || "Could not load assistant settings");
 			return;
 		}
 		if (settingsResponse.ok) {
-			const data = await settingsResponse.json() as AgentSettingsResponse;
+			const data = await readApiResult(settingsResponse);
 			setSettings(data.settings);
 			setAvailableModels(data.models ?? []);
 			setCanManage(data.canManage);
@@ -85,8 +86,8 @@ export function AgentPanel({ open, fullSize, onClose, onToggleFullSize }: AgentP
 			setAutoReplyEnabled(data.autoReplyEnabled);
 			setReviewers(data.reviewers ?? []);
 		}
-		if (conversationsResponse.ok) setConversations(((await conversationsResponse.json()) as AgentConversationsResponse).conversations ?? []);
-		if (jobsResponse.ok) setJobs(((await jobsResponse.json()) as AgentJobsResponse).jobs ?? []);
+		if (conversationsResponse.ok) setConversations((await readApiResult(conversationsResponse)).conversations ?? []);
+		if (jobsResponse.ok) setJobs((await readApiResult(jobsResponse)).jobs ?? []);
 	}, [mailboxId]);
 
 	useEffect(() => {
@@ -110,10 +111,10 @@ export function AgentPanel({ open, fullSize, onClose, onToggleFullSize }: AgentP
 		const savedId = readAgentConversationId(mailboxId);
 		selectedConversationRef.current = savedId;
 		setLoadingConversation(Boolean(savedId));
-		if (savedId) void authFetch(`/api/agent/conversations/${encodeURIComponent(savedId)}?mailboxId=${encodeURIComponent(mailboxId)}`).then(async (response) => {
+		if (savedId) void apiRequest("/api/agent/conversations/:id", { method: "GET", param: { id: savedId }, query: `mailboxId=${encodeURIComponent(mailboxId)}` }).then(async (response) => {
 			if (cancelled || selectedConversationRef.current !== savedId) return;
 			if (!response.ok) { saveAgentConversationId(mailboxId, null); selectedConversationRef.current = null; setLoadingConversation(false); return; }
-			const history = await response.json() as AgentHistoryResponse;
+			const history = await readApiResult(response);
 			if (cancelled || selectedConversationRef.current !== savedId) return;
 			setConversationId(savedId);
 			setMessages(normalizeAgentHistory(history.messages ?? []));
@@ -177,9 +178,9 @@ export function AgentPanel({ open, fullSize, onClose, onToggleFullSize }: AgentP
 		setView("chat");
 		if (menuRef.current) menuRef.current.open = false;
 		try {
-			const response = await authFetch(`/api/agent/conversations/${id}?mailboxId=${encodeURIComponent(mailboxId)}`);
+			const response = await apiRequest("/api/agent/conversations/:id", { method: "GET", param: { id: id }, query: `mailboxId=${encodeURIComponent(mailboxId)}` });
 			if (!response.ok) throw new Error("Could not load conversation");
-			const history = await response.json() as AgentHistoryResponse;
+			const history = await readApiResult(response);
 			if (selectedConversationRef.current === id) setMessages(normalizeAgentHistory(history.messages ?? []));
 		} catch (cause) {
 			if (selectedConversationRef.current === id) setError(cause instanceof Error ? cause.message : "Could not load conversation");
@@ -192,7 +193,7 @@ export function AgentPanel({ open, fullSize, onClose, onToggleFullSize }: AgentP
 		if (deletingConversationId) return;
 		setDeletingConversationId(id);
 		try {
-			const response = await authFetch(`/api/agent/conversations/${encodeURIComponent(id)}`, { method: "DELETE" });
+			const response = await apiRequest("/api/agent/conversations/:id", { method: "DELETE", param: { id: id } });
 			if (!response.ok) throw new Error("Could not delete conversation");
 			setConversations((current) => current.filter((item) => item.id !== id));
 			if (selectedConversationRef.current === id || conversationId === id) {
@@ -231,8 +232,8 @@ export function AgentPanel({ open, fullSize, onClose, onToggleFullSize }: AgentP
 		setError(null);
 		setMessages((current) => [...current, { id: userMessageId, role: "user", content: text, createdAt: new Date(startedAt).toISOString() }, { id: assistantMessageId, role: "assistant", content: "", pending: true }]);
 		try {
-			const response = await authFetch("/api/agent/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mailboxId, ...(selectedConversationRef.current ? { conversationId: selectedConversationRef.current } : {}), text, timeZone: getUserTimeZone() }), signal: controller.signal });
-			if (!response.ok) throw new Error(((await response.json()) as AgentErrorResponse).error || "Assistant unavailable");
+			const response = await apiRequest("/api/agent/chat", { method: "POST", headers: { "Content-Type": "application/json" }, json: { mailboxId, ...(selectedConversationRef.current ? { conversationId: selectedConversationRef.current } : {}), text, timeZone: getUserTimeZone() }, signal: controller.signal });
+			if (!response.ok) throw new Error((await readApiResult(response)).error || "Assistant unavailable");
 			accepted = true;
 			const responseConversationId = response.headers.get("X-Conversation-Id");
 			if (responseConversationId && generation === queueGenerationRef.current) { selectedConversationRef.current = responseConversationId; saveAgentConversationId(mailboxId, responseConversationId); setConversationId(responseConversationId); }
@@ -301,23 +302,23 @@ export function AgentPanel({ open, fullSize, onClose, onToggleFullSize }: AgentP
 		setBusy(true);
 		setError(null);
 		try {
-			const response = await authFetch("/api/agent/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) });
-			if (!response.ok) throw new Error(((await response.json()) as AgentErrorResponse).error || "Could not save settings");
+			const response = await apiRequest("/api/agent/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, json: settings });
+			if (!response.ok) throw new Error((await readApiResult(response)).error || "Could not save settings");
 			await refresh();
 		} catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save settings"); }
 		finally { setBusy(false); }
 	}
 
 	async function retryJob(id: string) {
-		const response = await authFetch(`/api/agent/jobs/${id}/retry`, { method: "POST" });
+		const response = await apiRequest("/api/agent/jobs/:id/retry", { method: "POST", param: { id: id } });
 		if (response.ok) await refresh();
-		else setError(((await response.json()) as AgentErrorResponse).error || "Could not retry draft");
+		else setError((await readApiResult(response)).error || "Could not retry draft");
 	}
 
 	async function discardJobDraft(draftId: string) {
-		const response = await authFetch(`/api/drafts/${encodeURIComponent(draftId)}`, { method: "DELETE" });
+		const response = await apiRequest("/api/drafts/:id", { method: "DELETE", param: { id: draftId } });
 		if (response.ok) await refresh();
-		else setError(((await response.json()) as AgentErrorResponse).error || "Could not discard draft");
+		else setError((await readApiResult(response)).error || "Could not discard draft");
 	}
 
 	async function startDraftReview(draftId: string, revision: number) {

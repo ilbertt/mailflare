@@ -1,3 +1,4 @@
+import type { HttpResponse } from "@/lib/api/json";
 import { newId } from "@/lib/ids";
 
 type TurnstileResponse = {
@@ -14,7 +15,7 @@ export async function verifyTurnstileToken(
 	if (!secret) return true;
 	if (typeof token !== "string" || !token.trim() || token.length > 2048) return false;
 
-	let response: Response;
+	let response: HttpResponse;
 	try {
 		response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
 			method: "POST",

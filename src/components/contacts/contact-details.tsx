@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { formatUserDate } from "@/lib/time/utils";
 import { Button } from "@/components/ui/button";

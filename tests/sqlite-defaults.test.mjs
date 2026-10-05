@@ -41,7 +41,7 @@ test("upstream sqlite setup does not mention a private mailbox size or host cach
 	assert.equal(source.includes("mmap_size"), false);
 	assert.equal(source.includes("cache_size"), false);
 	assert.equal(source.includes("synchronous = NORMAL"), false);
-	const route = readFileSync(join(root, "src/app/api/messages/route.ts"), "utf8");
+	const route = readFileSync(join(root, "src/server/handlers/api/messages/route.ts"), "utf8");
 	assert.equal(route.includes("13GB"), false);
 	assert.equal(route.includes("maxScan"), false);
 });

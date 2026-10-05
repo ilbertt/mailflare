@@ -22,14 +22,14 @@ async function bundle(entry, outfile) {
 		target: "node22",
 		logLevel: "silent",
 		alias: { "@": join(root, "src") },
-		external: ["react", "react-dom", "next", "next/*"],
+		external: ["react", "react-dom"],
 	});
 	return import(pathToFileURL(join(outDir, outfile)).href);
 }
 
 const display = await bundle("src/lib/email/recipient-display.ts", "display.mjs");
 const thread = await bundle("src/components/messages/conversation-thread-utils.ts", "thread.mjs");
-const parties = await bundle("src/app/(dashboard)/inbox/[messageId]/utils.ts", "parties.mjs");
+const parties = await bundle("src/components/screens/(dashboard)/inbox/[messageId]/utils.ts", "parties.mjs");
 const validators = await bundle("src/lib/validators.ts", "validators.mjs");
 
 test("address style drops the display name", () => {

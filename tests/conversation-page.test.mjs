@@ -12,7 +12,7 @@ after(() => rmSync(outDir, { recursive: true, force: true }));
 
 await build({
 	entryPoints: {
-		page: join(root, "src/app/api/messages/utils.ts"),
+		page: join(root, "src/server/handlers/api/messages/utils.ts"),
 		database: join(root, "server/runtime/sqlite-database.ts"),
 	},
 	outdir: outDir,

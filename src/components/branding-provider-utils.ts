@@ -1,3 +1,5 @@
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import type { Branding } from "@/lib/branding/types";
 
 export const DEFAULT_BRANDING: Branding = {
@@ -7,7 +9,7 @@ export const DEFAULT_BRANDING: Branding = {
 };
 
 export async function fetchBranding(): Promise<Branding> {
-	const response = await fetch("/api/branding", { cache: "no-store" });
+	const response = await apiRequest("/api/branding", { method: "GET", cache: "no-store", authenticated: false });
 	if (!response.ok) return DEFAULT_BRANDING;
-	return (await response.json()) as Branding;
+	return await readApiResult(response);
 }

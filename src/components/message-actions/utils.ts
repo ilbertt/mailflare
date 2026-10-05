@@ -1,10 +1,12 @@
-import type { BulkMessageAction } from "@/app/api/messages/bulk/types";
-import { authFetch } from "@/lib/auth/client";
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
+import type { BulkMessageAction } from "@/server/handlers/api/messages/bulk/types";
+
 import { markMessagesReadInCaches } from "@/hooks/utils";
 import { getEmailAddress, normalizeEmailAddress, splitEmailAddressList } from "@/lib/email/address";
 import { getLatestEmailContent } from "@/lib/email/reply-content-utils";
 import { formatUserDate } from "@/lib/time/utils";
-import { sanitizeEmailHtml } from "@/app/(dashboard)/inbox/[messageId]/email-html-sanitizer";
+import { sanitizeEmailHtml } from "@/components/screens/(dashboard)/inbox/[messageId]/email-html-sanitizer";
 import { escapeHtml, htmlToPlainText, textToHtml, wrapQuotedHtml } from "@/components/compose/rich-text-utils";
 import type {
   BlockMessageContactInput,
@@ -16,15 +18,7 @@ import type {
   ReplyRecipients,
   TrashSenderRuleInput,
 } from "./types";
-import {
-  ArchiveIcon,
-  Inbox,
-  InboxIcon,
-  ShieldAlertIcon,
-  ShieldIcon,
-  Trash2Icon,
-  TrashIcon,
-} from "lucide-react";
+import { ArchiveIcon, InboxIcon, ShieldAlertIcon, Trash2Icon } from "lucide-react";
 
 export function getMessageBackHref(
   direction: "inbound" | "outbound",
@@ -41,11 +35,7 @@ export async function runSingleMessageAction(
   messageId: string,
   action: BulkMessageAction,
 ) {
-  const response = await authFetch("/api/messages/bulk", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messageIds: [messageId], action }),
-  });
+  const response = await apiRequest("/api/messages/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, json: { messageIds: [messageId], action } });
 
   if (!response.ok) {
     throw new Error("Unable to update message");
@@ -72,19 +62,15 @@ export async function createTrashSenderRule({
   const sender = getEmailAddress(senderAddress).trim().toLowerCase();
   if (!sender) throw new Error("Sender address is required");
 
-  const response = await authFetch("/api/routing-rules", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const response = await apiRequest("/api/routing-rules", { method: "POST", headers: { "Content-Type": "application/json" }, json: {
       mailboxId,
       matchField: "email",
       matchOperator: "exact",
       matchValue: sender,
       destination: "trash",
       priority: 0,
-    }),
-  });
-  const data = (await response.json()) as { error?: string };
+    } });
+  const data = await readApiResult(response);
   if (!response.ok)
     throw new Error(data.error ?? "Unable to create trash rule");
 }
@@ -93,12 +79,8 @@ export async function blockMessageContact({
   mailboxId,
   senderAddress,
 }: BlockMessageContactInput) {
-  const response = await authFetch("/api/contacts/block", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mailboxId, address: senderAddress }),
-  });
-  const data = (await response.json()) as { error?: string };
+  const response = await apiRequest("/api/contacts/block", { method: "POST", headers: { "Content-Type": "application/json" }, json: { mailboxId, address: senderAddress } });
+  const data = await readApiResult(response);
   if (!response.ok) throw new Error(data.error ?? "Unable to block contact");
 }
 
@@ -254,10 +236,7 @@ export function buildForwardHtml(
  */
 export async function createForwardDraft({ mailboxId, ownAddress, message, bodyText, bodyHtml }: ForwardDraftInput) {
   const html = buildForwardHtml(message, bodyText, bodyHtml);
-  const response = await authFetch("/api/drafts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const response = await apiRequest("/api/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, json: {
       mailboxId,
       from: getEmailAddress(ownAddress ?? ""),
       to: "",
@@ -267,9 +246,8 @@ export async function createForwardDraft({ mailboxId, ownAddress, message, bodyT
       references: getReplyThreading(message).references,
       threadId: message.threadId,
       forwardOfMessageId: message.id,
-    }),
-  });
-  const data = (await response.json()) as { draft?: { id: string }; error?: string };
+    } });
+  const data = await readApiResult(response);
   if (!response.ok || !data.draft) throw new Error(data.error ?? "Unable to start forward");
   return data.draft.id;
 }
@@ -288,10 +266,7 @@ export async function createReplyDraft({
   if (recipients.to.length === 0) throw new Error("Sender address is required");
   const html = buildReplyQuoteHtml(senderAddress, sentAt, bodyText, bodyHtml) ?? "";
 
-  const response = await authFetch("/api/drafts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const response = await apiRequest("/api/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, json: {
       mailboxId,
       // The API rejects the draft unless `from` matches the mailbox address.
       from: getEmailAddress(ownAddress ?? ""),
@@ -301,12 +276,8 @@ export async function createReplyDraft({
       html,
       text: htmlToPlainText(html),
       ...threading,
-    }),
-  });
-  const data = (await response.json()) as {
-    draft?: { id: string };
-    error?: string;
-  };
+    } });
+  const data = await readApiResult(response);
   if (!response.ok || !data.draft)
     throw new Error(data.error ?? "Unable to create reply draft");
   return data.draft.id;

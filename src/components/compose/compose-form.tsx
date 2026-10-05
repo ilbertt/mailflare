@@ -1,16 +1,16 @@
-"use client";
-
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { ChevronUp, FileText, Forward, Maximize2, Minimize2, Minus, Paperclip, Reply, Trash2, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useSelectedMailbox } from "@/components/mailbox-provider";
-import { authFetch } from "@/lib/auth/client";
+
 import { formatEmailAddress, getEmailAddress } from "@/lib/email/address";
 import { cn } from "@/lib/utils";
 import { SendReview } from "@/components/agent/send-review";
@@ -84,8 +84,8 @@ export function ComposeForm({
 
 	useEffect(() => {
 		let active = true;
-		void authFetch("/api/attachment-policy", { cache: "no-store" }).then(async (response) => {
-			if (response.ok && active) setAttachmentPolicy((await response.json()) as ComposeAttachmentPolicy);
+		void apiRequest("/api/attachment-policy", { method: "GET", cache: "no-store" }).then(async (response) => {
+			if (response.ok && active) setAttachmentPolicy(await readApiResult(response));
 		}).catch(() => {});
 		return () => { active = false; };
 	}, []);
@@ -216,15 +216,13 @@ export function ComposeForm({
 				references: threading?.references ?? null,
 				threadId: threading?.threadId ?? null,
 			};
-			const res = await authFetch(draftId ? `/api/drafts/${draftId}` : "/api/drafts", {
-				method: draftId ? "PATCH" : "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
-			});
-			const data = (await res.json()) as { draft?: { id: string } };
+			const res = draftId
+                ? await apiRequest("/api/drafts/:id", { method: "PATCH", param: { id: draftId }, json: payload })
+                : await apiRequest("/api/drafts", { method: "POST", json: payload });
+			const data = await readApiResult(res);
 			if (res.ok && data.draft?.id) {
 				if (generation !== draftGeneration.current) {
-					void authFetch(`/api/drafts/${data.draft.id}`, { method: "DELETE" });
+					void apiRequest("/api/drafts/:id", { method: "DELETE", param: { id: data.draft.id } });
 					return;
 				}
 				setDraftId(data.draft.id);
@@ -259,28 +257,26 @@ export function ComposeForm({
 				if (attachments.length > 0) {
 					const form = new FormData();
 					for (const attachment of attachments) form.append("attachments", attachment.file);
-					const uploaded = await authFetch(`/api/drafts/${draftId}/attachments`, { method: "POST", body: form });
-					const result = await uploaded.json() as { attachments?: ComposeStoredAttachment[]; error?: string };
+					const uploaded = await apiRequest("/api/drafts/:id/attachments", { method: "POST", body: form, param: { id: draftId } });
+					const result = await readApiResult(uploaded);
 					if (!uploaded.ok) throw new Error(result.error || "Could not add attachments to the draft");
 					setStoredAttachments((current) => [...current, ...(result.attachments ?? [])]);
 					setAttachments([]);
 				}
-				const updated = await authFetch(`/api/drafts/${draftId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mailboxId: selectedMailbox?.id, from: fromAddr, to: recipientsToHeader(to), cc: recipientsToHeader(cc), bcc: recipientsToHeader(bcc), subject, html: fullHtml, text: htmlToPlainText(fullHtml), inReplyTo: threading?.inReplyTo ?? null, references: threading?.references ?? null, threadId: threading?.threadId ?? null, scheduledAt: scheduledAt?.toISOString() ?? null }) });
+				const updated = await apiRequest("/api/drafts/:id", { method: "PATCH", headers: { "Content-Type": "application/json" }, json: { mailboxId: selectedMailbox?.id, from: fromAddr, to: recipientsToHeader(to), cc: recipientsToHeader(cc), bcc: recipientsToHeader(bcc), subject, html: fullHtml, text: htmlToPlainText(fullHtml), inReplyTo: threading?.inReplyTo ?? null, references: threading?.references ?? null, threadId: threading?.threadId ?? null, scheduledAt: scheduledAt?.toISOString() ?? null }, param: { id: draftId } });
 				if (!updated.ok) throw new Error("Could not save the draft for review");
 				const current = await fetchDraft(draftId);
 				if (!current.agent) throw new Error("AI draft metadata is missing");
 				setAgentRevision(current.agent.revision);
-				const response = await authFetch("/api/agent/approvals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId, expectedRevision: current.agent.revision }) });
-				const result = await response.json() as { approvalId?: string; snapshot?: ReviewSnapshot; error?: string };
+				const response = await apiRequest("/api/agent/approvals", { method: "POST", headers: { "Content-Type": "application/json" }, json: { draftId, expectedRevision: current.agent.revision } });
+				const result = await readApiResult(response);
 				if (!response.ok || !result.approvalId || !result.snapshot) throw new Error(result.error || "Could not create review");
 				setAgentReview({ approvalId: result.approvalId, snapshot: result.snapshot });
 			} catch (cause) { setToast({ type: "error", message: cause instanceof Error ? cause.message : "Could not review draft" }); }
 			finally { setLoading(false); }
 			return;
 		}
-		const res = await authFetch("/api/send", {
-			method: "POST",
-			body: buildSendFormData({
+		const res = await apiRequest("/api/send", { method: "POST", body: buildSendFormData({
 				attachments,
 				from: fromAddr,
 				to: recipientsToHeader(to),
@@ -293,9 +289,8 @@ export function ComposeForm({
 				threading: threading ?? undefined,
 				draftId,
 				scheduledAt,
-			}),
-		});
-		const data = (await res.json()) as { messageId?: string; scheduled?: boolean; error?: string };
+			}) });
+		const data = await readApiResult(res);
 		setLoading(false);
 
 		if (!res.ok) {
@@ -304,7 +299,7 @@ export function ComposeForm({
 		}
 
 		if (draftId) {
-			void authFetch(`/api/drafts/${draftId}`, { method: "DELETE" }).finally(() => {
+			void apiRequest("/api/drafts/:id", { method: "DELETE", param: { id: draftId } }).finally(() => {
 				window.dispatchEvent(new Event("mailflare:messages-changed"));
 			});
 		}
@@ -331,7 +326,7 @@ export function ComposeForm({
 		setDeletingDraft(true);
 
 		if (draftId) {
-			const res = await authFetch(`/api/drafts/${draftId}`, { method: "DELETE" });
+			const res = await apiRequest("/api/drafts/:id", { method: "DELETE", param: { id: draftId } });
 			if (!res.ok) {
 				setDeletingDraft(false);
 				setToast({ type: "error", message: "Could not delete draft" });
@@ -359,12 +354,12 @@ export function ComposeForm({
 			return;
 		}
 		setDeletingDraft(false);
-		router.push("/inbox");
+		router.navigate({ to: "/inbox" });
 	}
 
 	async function removeStoredAttachment(attachmentId: string) {
 		if (!draftId) return;
-		const res = await authFetch(`/api/drafts/${draftId}/attachments/${attachmentId}`, { method: "DELETE" });
+		const res = await apiRequest("/api/drafts/:id/attachments/:attachmentId", { method: "DELETE", param: { id: draftId, attachmentId: attachmentId } });
 		if (!res.ok) {
 			setToast({ type: "error", message: "Could not remove attachment" });
 			return;
@@ -498,7 +493,7 @@ export function ComposeForm({
 
 	return (
 		<>
-			{agentReview && <SendReview approvalId={agentReview.approvalId} snapshot={agentReview.snapshot} onClose={() => setAgentReview(null)} onSent={() => { setAgentReview(null); if (onClose) onClose(); else router.push("/sent"); }} />}
+			{agentReview && <SendReview approvalId={agentReview.approvalId} snapshot={agentReview.snapshot} onClose={() => setAgentReview(null)} onSent={() => { setAgentReview(null); if (onClose) onClose(); else router.navigate({ to: "/sent" }); }} />}
 			{mode === "popup" && modalMode && !minimized && <div className="fixed inset-0 z-40 bg-neutral-950/65" aria-hidden="true" />}
 			{toast && (
 				<div

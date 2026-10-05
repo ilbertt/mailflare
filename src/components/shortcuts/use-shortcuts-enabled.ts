@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useState } from "react";
 import { loadShortcutsEnabled, updateShortcutsEnabled } from "./use-shortcuts-enabled-utils";
 

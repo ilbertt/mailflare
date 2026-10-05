@@ -1,6 +1,4 @@
-"use client";
-
-import { useRouter } from "next/navigation";
+import { useRouter } from "@tanstack/react-router";
 import { ArrowLeft, Columns2 } from "lucide-react";
 import clsx from "clsx";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -15,7 +13,7 @@ export function MessageReadingHeaderButton({ assistantVisible }: MessageReadingH
 		: assistantVisible ? null : visible ? "Hide email list" : "Show email list";
 
 	function handleClick() {
-		if (singleColumn) router.push(backHref);
+		if (singleColumn) router.navigate({ href: backHref });
 		else toggle();
 	}
 

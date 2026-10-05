@@ -1,4 +1,6 @@
-import { authFetch } from "@/lib/auth/client";
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
+
 import { appendOptimizedAvatar, MAX_SOURCE_AVATAR_SIZE } from "@/lib/avatar-upload-client";
 
 export const CONTACT_AVATAR_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
@@ -16,16 +18,16 @@ export async function uploadContactAvatar(mailboxId: string, address: string, fi
 	body.append("mailboxId", mailboxId);
 	body.append("address", address);
 	await appendOptimizedAvatar(body, file);
-	const response = await authFetch("/api/contacts/avatar", { method: "POST", body });
+	const response = await apiRequest("/api/contacts/avatar", { method: "POST", body });
 	if (response.ok) return;
-	const data = (await response.json().catch(() => null)) as { error?: string } | null;
+	const data = await readApiResult(response).catch(() => null);
 	throw new Error(data?.error ?? "Upload failed");
 }
 
 export async function removeContactAvatar(mailboxId: string, address: string): Promise<void> {
 	const params = new URLSearchParams({ mailboxId, address });
-	const response = await authFetch(`/api/contacts/avatar?${params.toString()}`, { method: "DELETE" });
+	const response = await apiRequest("/api/contacts/avatar", { method: "DELETE", query: `${params.toString()}` });
 	if (response.ok) return;
-	const data = (await response.json().catch(() => null)) as { error?: string } | null;
+	const data = await readApiResult(response).catch(() => null);
 	throw new Error(data?.error ?? "Unable to remove profile picture");
 }

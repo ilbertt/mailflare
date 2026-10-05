@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Forward, Inbox, Info, Pencil, Plus, Trash2 } from "lucide-react";

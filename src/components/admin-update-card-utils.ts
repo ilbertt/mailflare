@@ -1,8 +1,10 @@
+import { readApiJson } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import type { MigrationStatusResponse, UpdateStatusResponse, UpdateWorkflowResponse } from "./admin-update-card-types";
 
 export async function getApplicationUpdateStatus(): Promise<UpdateStatusResponse> {
-	const response = await fetch("/api/admin/update", { cache: "no-store" });
-	const data = (await response.json()) as UpdateStatusResponse;
+	const response = await apiRequest("/api/admin/update", { method: "GET", cache: "no-store", authenticated: false });
+	const data = await readApiJson(response);
 
 	if (!response.ok) {
 		throw new Error(data.error ?? "Could not check for updates");
@@ -12,8 +14,8 @@ export async function getApplicationUpdateStatus(): Promise<UpdateStatusResponse
 }
 
 export async function triggerApplicationUpdate(): Promise<UpdateWorkflowResponse> {
-	const response = await fetch("/api/admin/update", { method: "POST" });
-	const data = (await response.json()) as UpdateWorkflowResponse;
+	const response = await apiRequest("/api/admin/update", { method: "POST", authenticated: false });
+	const data = await readApiJson(response);
 
 	if (!response.ok) {
 		throw new Error(data.error ?? "Could not start the update");
@@ -23,15 +25,15 @@ export async function triggerApplicationUpdate(): Promise<UpdateWorkflowResponse
 }
 
 export async function getMigrationStatus(): Promise<MigrationStatusResponse> {
-	const response = await fetch("/api/admin/migrations", { cache: "no-store" });
-	const data = (await response.json()) as MigrationStatusResponse;
+	const response = await apiRequest("/api/admin/migrations", { method: "GET", cache: "no-store", authenticated: false });
+	const data = await readApiJson(response);
 	if (!response.ok) throw new Error(data.error ?? "Could not check database migrations");
 	return data;
 }
 
 export async function applyDatabaseMigrations(): Promise<MigrationStatusResponse> {
-	const response = await fetch("/api/admin/migrations", { method: "POST" });
-	const data = (await response.json()) as MigrationStatusResponse;
+	const response = await apiRequest("/api/admin/migrations", { method: "POST", authenticated: false });
+	const data = await readApiJson(response);
 	if (!response.ok) throw new Error(data.error ?? "Could not apply database migrations");
 	return data;
 }

@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { ProgressiveAvatarImage } from "@/components/progressive-avatar-image";
 import { CONTACT_AVATAR_CHANGED_EVENT } from "@/lib/contacts/avatar-client";

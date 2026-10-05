@@ -1,5 +1,3 @@
-"use client";
-
 import { useRef } from "react";
 import type { PointerEvent } from "react";
 import type { ResizeHandleProps } from "./resize-handle-types";

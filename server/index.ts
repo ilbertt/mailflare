@@ -1,7 +1,11 @@
 import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import { parse } from "node:url";
-import next from "next";
+import { getRequestListener } from "@hono/node-server";
+import { Hono } from "hono";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { app, isBackendPath } from "../src/server/app";
+import { getSecurityHeaders } from "@/lib/security/headers";
 import { WebSocketServer } from "ws";
 import { getUserFromSession } from "@/lib/auth/session";
 import { getSessionTokenFromRequest } from "@/lib/realtime/utils";
@@ -16,14 +20,13 @@ import { startScheduler } from "./runtime/scheduler";
 import { startSmtpListener } from "./runtime/smtp";
 
 /**
- * The self-hosted entrypoint: one Node process serving the Next app, the
+ * The self-hosted entrypoint: one Node process serving the SPA and HTTP API, the
  * realtime WebSocket, the SMTP listener, the job queues and the backup
  * schedule, the same jobs worker.ts spreads across Cloudflare products.
  */
 async function main() {
 	const port = Number(process.env.PORT ?? 3000);
 	const host = process.env.HOST ?? "0.0.0.0";
-	const dev = process.env.NODE_ENV !== "production";
 	const runtime = createNodeRuntime();
 	const { env } = runtime;
 	globalThis.__mailflareNodeEnv = env;
@@ -42,21 +45,28 @@ async function main() {
 		if (typeof body === "object" && body !== null && (body as { kind?: unknown }).kind === "agent.draft" && typeof (body as { jobId?: unknown }).jobId === "string") await processAgentDraftJob(env, (body as { jobId: string }).jobId);
 	});
 
-	const app = next({ dev, dir: process.cwd(), hostname: host, port });
-	const handle = app.getRequestHandler();
-	await app.prepare();
-
-	const server = createServer((request, response) => {
-		void handle(request, response, parse(request.url ?? "/", true));
+	const web = new Hono();
+	web.use("*", async (context, next) => {
+		await next();
+		for (const { key, value } of getSecurityHeaders()) context.header(key, value);
 	});
+	web.use("*", async (context, next) => isBackendPath(new URL(context.req.url).pathname)
+		? app.fetch(context.req.raw, env)
+		: next());
+	web.use("*", serveStatic({ root: "./dist/client" }));
+	web.get("*", async (context, next) => {
+		const pathname = new URL(context.req.url).pathname;
+		if (pathname.startsWith("/assets/") || (pathname.split("/").at(-1)?.includes(".") && !context.req.header("Accept")?.includes("text/html"))) return context.notFound();
+		return serveStatic({ path: "./dist/client/index.html" })(context, next);
+	});
+	const server = createServer(getRequestListener((request) => web.fetch(request)));
 
 	const wss = new WebSocketServer({ noServer: true });
 	server.on("upgrade", (request, socket, head) => {
 		const { pathname } = parse(request.url ?? "/");
 		if (pathname !== "/api/realtime") {
-			// Next's own dev-mode HMR socket, or anything else, is not ours.
-			if (dev) app.getUpgradeHandler()(request, socket, head);
-			else socket.destroy();
+			// Vite serves its development HMR connection separately.
+			socket.destroy();
 			return;
 		}
 		const cookie = request.headers.cookie ?? "";

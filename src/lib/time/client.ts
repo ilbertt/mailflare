@@ -1,5 +1,3 @@
-"use client";
-
 export const USER_TIME_ZONE_CHANGED_EVENT = "mailflare:user-time-zone-changed";
 
 export function saveUserTimeZonePreference(userId: string, timeZone: string | null): void {

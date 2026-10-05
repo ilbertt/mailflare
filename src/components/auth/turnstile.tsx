@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 
@@ -19,7 +17,7 @@ type TurnstileWindow = Window & {
 	};
 };
 
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
 function loadTurnstileScript(): Promise<void> {
 	const existing = document.querySelector<HTMLScriptElement>("script[data-turnstile]");

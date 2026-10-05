@@ -1,0 +1,21 @@
+import { ApiResponse } from "@/server/http/response";
+import { assertPrimaryAdmin } from "@/lib/auth/admin";
+import { requireUser } from "@/lib/auth/cookies";
+import { restoreDatabaseRecords } from "@/lib/backups/export";
+import { getEnv } from "@/lib/cloudflare";
+
+export async function POST(request: Request) {
+	const env = getEnv();
+	try {
+		const user = await requireUser(env, request);
+		assertPrimaryAdmin(user);
+		const form = await request.formData();
+		const file = form.get("backup");
+		if (!(file instanceof File)) return ApiResponse.json({ error: "Choose a backup file" }, { status: 400 });
+		await restoreDatabaseRecords(env.DB, await file.arrayBuffer());
+		return ApiResponse.json({ ok: true });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Failed to restore backup";
+		return ApiResponse.json({ error: message }, { status: 400 });
+	}
+}

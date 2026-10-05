@@ -1,9 +1,8 @@
-"use client";
-
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import { useEffect, useState } from "react";
-import { authFetch } from "@/lib/auth/client";
+
 import { TRASH_RETENTION_OPTIONS, describeTrashRetention } from "@/lib/email/trash-retention-utils";
-import type { TrashRetentionSettingsResponse } from "@/app/api/settings/trash-retention/types";
 
 export function TrashRetentionSettings() {
 	const [days, setDays] = useState<number | null>(null);
@@ -11,9 +10,9 @@ export function TrashRetentionSettings() {
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		void authFetch("/api/settings/trash-retention")
+		void apiRequest("/api/settings/trash-retention", { method: "GET" })
 			.then(async (response) => {
-				const data = await response.json() as TrashRetentionSettingsResponse;
+				const data = await readApiResult(response);
 				if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Failed to load clean-up settings");
 				setDays(data.days ?? null);
 			})
@@ -27,12 +26,8 @@ export function TrashRetentionSettings() {
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await authFetch("/api/settings/trash-retention", {
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ days: nextDays }),
-			});
-			const data = await response.json() as TrashRetentionSettingsResponse;
+			const response = await apiRequest("/api/settings/trash-retention", { method: "PATCH", headers: { "Content-Type": "application/json" }, json: { days: nextDays } });
+			const data = await readApiResult(response);
 			if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Failed to update clean-up settings");
 			setDays(data.days ?? null);
 		} catch (nextError) {

@@ -1,13 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import { GET as listDomains, POST as createDomain } from "@/app/api/v1/domains/route";
-import { GET as getDomain, DELETE as deleteDomain } from "@/app/api/v1/domains/[id]/route";
-import { GET as getDomainDns } from "@/app/api/v1/domains/[id]/dns/route";
-import { POST as setupDomainDns } from "@/app/api/v1/domains/[id]/dns/setup/route";
-import { GET as listAccounts, POST as createAccount } from "@/app/api/v1/accounts/route";
-import { GET as getAccount, PATCH as updateAccount } from "@/app/api/v1/accounts/[id]/route";
-import { GET as listMailboxes, POST as createMailbox } from "@/app/api/v1/mailboxes/route";
-import { GET as getMailbox, PATCH as updateMailbox, DELETE as deleteMailbox } from "@/app/api/v1/mailboxes/[id]/route";
+import { GET as listDomains, POST as createDomain } from "@/server/handlers/api/v1/domains/route";
+import { GET as getDomain, DELETE as deleteDomain } from "@/server/handlers/api/v1/domains/[id]/route";
+import { GET as getDomainDns } from "@/server/handlers/api/v1/domains/[id]/dns/route";
+import { POST as setupDomainDns } from "@/server/handlers/api/v1/domains/[id]/dns/setup/route";
+import { GET as listAccounts, POST as createAccount } from "@/server/handlers/api/v1/accounts/route";
+import { GET as getAccount, PATCH as updateAccount } from "@/server/handlers/api/v1/accounts/[id]/route";
+import { GET as listMailboxes, POST as createMailbox } from "@/server/handlers/api/v1/mailboxes/route";
+import { GET as getMailbox, PATCH as updateMailbox, DELETE as deleteMailbox } from "@/server/handlers/api/v1/mailboxes/[id]/route";
 import type { McpPrincipal } from "./types";
 
 const adminInput = z.object({

@@ -1,6 +1,5 @@
-import type { BulkMessageAction } from "@/app/api/messages/bulk/types";
+import type { BulkMessageAction } from "@/server/handlers/api/messages/bulk/types";
 import type { Message, MessageDirection } from "@/hooks/types";
-import { IconNode } from "lucide-react";
 
 export type MessageActionsProps = {
 	messageId: string;

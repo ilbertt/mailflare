@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { getSnoozePresets, snoozeMessage } from "@/components/messages/message-list-row-actions-utils";
 import { Button } from "@/components/ui/button";

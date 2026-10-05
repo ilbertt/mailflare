@@ -17,8 +17,8 @@ await build({
 			export { createSession } from "./src/lib/auth/session.ts";
 			export { generateApiKey } from "./src/lib/api-keys.ts";
 			export { createUserAccountSchema } from "./src/lib/validators.ts";
-			export { POST as dashboardCreate } from "./src/app/api/accounts/route.ts";
-			export { POST as apiCreate } from "./src/app/api/v1/accounts/route.ts";
+			export { POST as dashboardCreate } from "./src/server/handlers/api/accounts/route.ts";
+			export { POST as apiCreate } from "./src/server/handlers/api/v1/accounts/route.ts";
 			export { registerAdminMcpTools } from "./src/lib/mcp/admin-tools.ts";
 			export { getMailboxDomainAddresses } from "./src/lib/mailboxes/domain-addresses.ts";
 			export { resolveInboundAddress } from "./src/lib/email/routing.ts";
@@ -34,7 +34,7 @@ await build({
 	target: "node24",
 	tsconfig: join(root, "tsconfig.json"),
 	packages: "external",
-	alias: { "next/headers": "next/headers.js", "next/server": "next/server.js", "cloudflare:workers": "./server/runtime/cloudflare-workers.ts" },
+	alias: {   "cloudflare:workers": "./server/runtime/cloudflare-workers.ts" },
 	logLevel: "silent",
 });
 const {
@@ -51,6 +51,7 @@ async function fixture(t, { rules = [], failAddress, slowAddress } = {}) {
 		INSERT INTO users (id, email, password_hash, name, role, created_at) VALUES
 			('admin', 'owner@one.test', 'hash', 'Owner', 'admin', 1),
 			('other', 'owner@foreign.test', 'hash', 'Other', 'admin', 1);
+		UPDATE users SET is_primary_admin = 1 WHERE id = 'admin';
 		INSERT INTO domains (id, user_id, hostname, zone_id, status, created_at) VALUES
 			('one', 'admin', 'one.test', 'zone-one', 'active', 1),
 			('two', 'admin', 'two.test', 'zone-two', 'active', 1),

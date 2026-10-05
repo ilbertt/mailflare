@@ -109,14 +109,14 @@ test("the identity write is keyed by mailbox id, not by owner and type", () => {
 });
 
 test("the mailbox routes gate the account name on the identity check", () => {
-	const detail = read("src/app/api/mailboxes/[id]/route.ts");
+	const detail = read("src/server/handlers/api/mailboxes/[id]/route.ts");
 	assert.match(detail, /tracksAccountIdentity\(existing, user\.email\) && "displayName" in parsed\.data/);
 	assert.ok(
 		!/existing\.type === "personal" && "displayName" in parsed\.data/.test(detail),
 		"PATCH must not treat every personal mailbox as the account identity",
 	);
 
-	const list = read("src/app/api/mailboxes/route.ts");
+	const list = read("src/server/handlers/api/mailboxes/route.ts");
 	assert.match(list, /tracksAccountIdentity\(mailbox, user\.email\)/);
 	assert.ok(
 		!/mailbox\.type === "personal"\n?\s*\? \{ displayName: user\.name/.test(list),
@@ -132,7 +132,7 @@ test("outgoing mail and message lists use the mailbox's own name", () => {
 		"every personal mailbox would send under the account owner's name",
 	);
 
-	const messages = read("src/app/api/messages/route.ts");
+	const messages = read("src/server/handlers/api/messages/route.ts");
 	assert.match(messages, /tracksAccountIdentity\(mailbox, user\.email\)/);
 });
 

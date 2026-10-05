@@ -9,7 +9,7 @@ import {
 	Music,
 	Presentation,
 } from "lucide-react";
-import type { MessageAttachment } from "@/app/(dashboard)/inbox/[messageId]/types";
+import type { MessageAttachment } from "@/components/screens/(dashboard)/inbox/[messageId]/types";
 import type { AttachmentVisual } from "./message-attachment-card-types";
 import { getAttachmentPreviewKind } from "./message-attachment-viewer-utils";
 

@@ -14,8 +14,6 @@ interface CloudflareEnv {
 		| import("./src/lib/email/webhooks").WebhookRetryMessage
 	>;
 	ASSETS: Fetcher;
-	IMAGES: ImagesBinding;
-	WORKER_SELF_REFERENCE: Fetcher;
 	REALTIME: DurableObjectNamespace<
 		import("./src/lib/realtime/hub").RealtimeHub
 	>;

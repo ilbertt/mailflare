@@ -1,5 +1,3 @@
-"use client";
-
 import { useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { X } from "lucide-react";

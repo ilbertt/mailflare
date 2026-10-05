@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies } from "@/server/http/request-context";
 import { SESSION_COOKIE, getUserFromSession } from "@/lib/auth/session";
 
 function getBearerToken(request?: Request): string | undefined {

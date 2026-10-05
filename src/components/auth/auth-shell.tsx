@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { useBranding } from "@/components/branding-provider";
 import type { AuthShellProps } from "./types";

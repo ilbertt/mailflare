@@ -1,12 +1,12 @@
-"use client";
-
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { authFetch } from "@/lib/auth/client";
+
 import { textToHtml } from "./rich-text-utils";
 import type { NewTemplateDialogProps } from "./template-types";
 
@@ -20,13 +20,9 @@ export function NewTemplateDialog({ open, onOpenChange, mailboxId, from }: NewTe
 		setSaving(true);
 		setError("");
 		try {
-			const response = await authFetch("/api/templates", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ mailboxId, from, title, text: content, html: textToHtml(content) }),
-			});
+			const response = await apiRequest("/api/templates", { method: "POST", headers: { "Content-Type": "application/json" }, json: { mailboxId, from, title, text: content, html: textToHtml(content) } });
 			if (!response.ok) {
-				setError(((await response.json().catch(() => null)) as { error?: string } | null)?.error ?? "Could not save template");
+				setError((await readApiResult(response).catch(() => null))?.error ?? "Could not save template");
 				return;
 			}
 			onOpenChange(false);

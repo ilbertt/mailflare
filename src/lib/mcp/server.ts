@@ -26,7 +26,7 @@ export function createMailflareMcpHandler(env: CloudflareEnv, principal: McpPrin
 		const server = new McpServer({ name: "mailflare", version: "0.1.0" });
 		if (principal.scopes.some((scope) => scope.startsWith("mcp:"))) {
 		for (const name of CALENDAR_TOOL_NAMES) {
-			server.registerTool(name, { description: calendarToolDescriptions[name], inputSchema: calendarToolSchemas[name] }, async (args) => {
+			server.registerTool(name, { description: calendarToolDescriptions[name], inputSchema: calendarToolSchemas[name] }, async (args: Record<string, unknown>) => {
 				if (!principal.scopes.includes(calendarToolScope(name))) return output({ error: "Permission denied" }, true);
 				try { return output(await runCalendarTool({ env, user: principal.user }, name, args)); }
 				catch (error) { return output({ error: error instanceof Error ? error.message : "Calendar tool failed" }, true); }
@@ -39,13 +39,13 @@ export function createMailflareMcpHandler(env: CloudflareEnv, principal: McpPrin
 		});
 		for (const name of EMAIL_TOOL_NAMES) {
 			if (name === "edit_draft" || name === "review_draft_send") continue;
-			server.registerTool(name, { description: emailToolDescriptions[name], inputSchema: z.object({ mailboxId: z.string().min(1), ...emailToolSchemas[name].shape }) }, async (args) => {
+			server.registerTool(name, { description: emailToolDescriptions[name], inputSchema: z.object({ mailboxId: z.string().min(1), ...emailToolSchemas[name].shape }) }, async (args: { mailboxId: string } & Record<string, unknown>) => {
 				if (!principal.scopes.includes(scopeByTool[name]) || !principal.mailboxIds.includes(args.mailboxId)) return output({ error: "Permission denied" }, true);
 				try { return output(await runEmailTool({ env, user: principal.user, mailboxId: args.mailboxId, origin: "mcp" }, name, args)); }
 				catch (error) { return output({ error: error instanceof Error ? error.message : "Tool failed" }, true); }
 			});
 		}
-		server.registerTool("update_draft", { description: emailToolDescriptions.edit_draft, inputSchema: z.object({ mailboxId: z.string(), ...emailToolSchemas.edit_draft.shape }) }, async (args) => {
+		server.registerTool("update_draft", { description: emailToolDescriptions.edit_draft, inputSchema: z.object({ mailboxId: z.string(), ...emailToolSchemas.edit_draft.shape }) }, async (args: { mailboxId: string } & import("@/lib/agent/types").AgentDraftEditInput) => {
 			const { mailboxId } = args;
 			if (!principal.scopes.includes("mcp:draft") || !principal.mailboxIds.includes(mailboxId)) return output({ error: "Permission denied" }, true);
 			try { return output(await editAgentDraft({ env, user: principal.user, mailboxId, origin: "mcp" }, args)); }

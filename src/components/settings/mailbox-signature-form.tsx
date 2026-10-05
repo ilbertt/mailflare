@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { useSelectedMailbox } from "@/components/mailbox-provider";
 import { isHtmlSignature, signatureToHtml } from "@/components/compose/rich-text-utils";

@@ -1,10 +1,9 @@
-"use client";
-
+import { readApiJson } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import { Folder } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSelectedMailbox } from "@/components/mailbox-provider";
-import { authFetch } from "@/lib/auth/client";
-import type { CustomFolderSummary } from "./custom-folder-config-types";
+
 import type { MessageFolderConfig } from "./types";
 
 export function useCustomFolderConfig(folderId: string): MessageFolderConfig {
@@ -16,8 +15,8 @@ export function useCustomFolderConfig(folderId: string): MessageFolderConfig {
 		let cancelled = false;
 		const search = new URLSearchParams({ mailboxId: selectedMailbox.id });
 
-		authFetch(`/api/folders?${search.toString()}`)
-			.then((response) => response.json() as Promise<{ folders?: CustomFolderSummary[] }>)
+		apiRequest("/api/folders", { method: "GET", query: `${search.toString()}` })
+			.then((response) => readApiJson(response))
 			.then((data) => {
 				if (cancelled) return;
 				const folder = data.folders?.find((item) => item.id === folderId);

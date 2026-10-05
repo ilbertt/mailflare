@@ -1,9 +1,11 @@
-import { authFetch } from "@/lib/auth/client";
-import type { ComposeAttachment, ComposeDraft, ComposeThreading, DraftResponse } from "./types";
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
+
+import type { ComposeAttachment, ComposeDraft, ComposeThreading } from "./types";
 
 export async function fetchDraft(draftId: string): Promise<ComposeDraft> {
-	const res = await authFetch(`/api/drafts/${draftId}`);
-	const json = (await res.json()) as DraftResponse;
+	const res = await apiRequest("/api/drafts/:id", { method: "GET", param: { id: draftId } });
+	const json = await readApiResult(res);
 
 	if (!res.ok || !json.draft) {
 		throw new Error(json.error ?? "Failed to load draft");

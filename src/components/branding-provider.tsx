@@ -1,5 +1,3 @@
-"use client";
-
 import { createContext, useContext, useEffect, useState } from "react";
 import type { BrandingContextValue } from "./branding-provider-types";
 import { DEFAULT_BRANDING, fetchBranding } from "./branding-provider-utils";

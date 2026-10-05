@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect } from "react";
 import { applyTheme, readThemePreference, THEME_CHANGED_EVENT } from "@/components/theme-utils";
 

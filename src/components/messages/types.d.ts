@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import type { Message, MessageFolder } from "@/hooks/types";
-import type { BulkMessageAction } from "@/app/api/messages/bulk/types";
+import type { BulkMessageAction } from "@/server/handlers/api/messages/bulk/types";
 
 export type MessageFolderConfig = {
 	folder: MessageFolder;

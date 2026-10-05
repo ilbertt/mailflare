@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { X, Keyboard } from "lucide-react";
 import type { ShortcutDefinition } from "./types";

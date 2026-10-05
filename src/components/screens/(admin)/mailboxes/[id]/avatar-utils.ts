@@ -1,0 +1,32 @@
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
+
+import { appendOptimizedAvatar } from "@/lib/avatar-upload-client";
+import { clearMailboxesCache } from "@/components/mailbox-provider-utils";
+import {
+	PROFILE_AVATAR_ACCEPT,
+	validateProfileAvatar,
+} from "@/components/settings/profile-avatar-form-utils";
+
+export const MAILBOX_AVATAR_ACCEPT = PROFILE_AVATAR_ACCEPT;
+
+export function getMailboxAvatarUrl(mailboxId: string): string {
+	return `/api/mailboxes/${mailboxId}/avatar?v=${Date.now()}`;
+}
+
+export function validateMailboxAvatar(file: File): string | null {
+	return validateProfileAvatar(file);
+}
+
+export async function uploadMailboxAvatar(mailboxId: string, file: File): Promise<void> {
+	const body = new FormData();
+	await appendOptimizedAvatar(body, file);
+	const response = await apiRequest("/api/mailboxes/:id/avatar", { method: "POST", body, param: { id: mailboxId } });
+	if (response.ok) {
+		clearMailboxesCache();
+		return;
+	}
+
+	const data = await readApiResult(response).catch(() => null);
+	throw new Error(data?.error ?? "Upload failed");
+}

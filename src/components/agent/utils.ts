@@ -1,3 +1,4 @@
+import type { HttpResponse } from "@/lib/api/json";
 import type { KeyboardEvent } from "react";
 import type { AgentActionProposal, AgentDraftAction, AgentEmailReference, AgentEvent, AgentMessage, AgentTurn, QueuedAgentMessage } from "./types";
 
@@ -18,7 +19,7 @@ export function steerQueuedAgentMessage(messages: QueuedAgentMessage[], id: stri
 	return selected ? [selected, ...messages.filter((item) => item.id !== id)] : messages;
 }
 
-export async function consumeAgentStream(response: Response, onEvent: (event: AgentEvent) => void) {
+export async function consumeAgentStream(response: HttpResponse, onEvent: (event: AgentEvent) => void) {
 	if (!response.body) throw new Error("Assistant stream is unavailable");
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();

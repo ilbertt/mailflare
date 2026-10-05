@@ -1,0 +1,48 @@
+import type { BookingEventInput } from "@/lib/booking/types";
+import type { ApiRequest } from "@/shared/api-request";
+import { and, eq } from "drizzle-orm";
+import { ApiResponse } from "@/server/http/response";
+import { getDb } from "@/db";
+import { bookingEvents, users } from "@/db/schema";
+import { getCurrentUser } from "@/lib/auth/cookies";
+import { hasValidSessionMutationOrigin } from "@/lib/auth/origin";
+import { parseBookingEventInput } from "@/lib/booking/utils";
+import { getEnv } from "@/lib/cloudflare";
+import { newId } from "@/lib/ids";
+import { ensureBookingUsername } from "@/lib/booking/username";
+import { validBookingHostIds } from "@/lib/booking/hosts";
+import { getLicenseEntitlements } from "@/lib/licenses/service";
+
+export async function GET(request: Request) {
+	const env = getEnv();
+	const user = await getCurrentUser(env, request);
+	if (!user) return ApiResponse.json({ error: "Unauthorized" }, { status: 401 });
+	const username = await ensureBookingUsername(env, user.id, user.email);
+	const db = getDb(env);
+	const events = await db.select().from(bookingEvents).where(eq(bookingEvents.userId, user.id)).orderBy(bookingEvents.createdAt);
+	const [currentUser] = await db.select({ avatarKey: users.avatarKey }).from(users).where(eq(users.id, user.id)).limit(1);
+	const canManageHosts = user.role === "admin" && (await getLicenseEntitlements(env)).canManageAccounts;
+	return ApiResponse.json({ events, username, currentUser: { id: user.id, name: user.name, email: user.email, hasAvatar: !!currentUser?.avatarKey }, canManageHosts });
+}
+
+export async function POST(request: ApiRequest<BookingEventInput>) {
+	const env = getEnv();
+	const user = await getCurrentUser(env, request);
+	if (!user) return ApiResponse.json({ error: "Unauthorized" }, { status: 401 });
+	if (!hasValidSessionMutationOrigin(request)) return ApiResponse.json({ error: "Invalid origin" }, { status: 403 });
+	const input = parseBookingEventInput(await request.json().catch(() => null));
+	if (!input) return ApiResponse.json({ error: "Enter valid booking details and availability." }, { status: 400 });
+	const db = getDb(env);
+	const canManageHosts = user.role === "admin" && (await getLicenseEntitlements(env)).canManageAccounts;
+	const hostIds = await validBookingHostIds(db, user.id, input.hostIds, canManageHosts);
+	if (!hostIds) return ApiResponse.json({ error: "Choose users from the host list." }, { status: 400 });
+	const [taken] = await db.select({ id: bookingEvents.id }).from(bookingEvents).where(and(eq(bookingEvents.userId, user.id), eq(bookingEvents.slug, input.slug))).limit(1);
+	if (taken) return ApiResponse.json({ error: "This event link is already in use." }, { status: 409 });
+	try {
+		const [event] = await db.insert(bookingEvents).values({ ...input, id: newId("book"), userId: user.id, hostIds: JSON.stringify(hostIds), weekdays: JSON.stringify(input.weekdays), timeRanges: JSON.stringify(input.timeRanges) }).returning();
+		return ApiResponse.json({ event });
+	} catch (error) {
+		if (error instanceof Error && /UNIQUE constraint failed|booking_events_user_slug_idx/i.test(error.message)) return ApiResponse.json({ error: "This event link is already in use." }, { status: 409 });
+		throw error;
+	}
+}

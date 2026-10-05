@@ -1,8 +1,8 @@
-# Mailflare self-hosted image: Next.js app, SMTP listener, job queues and
+# Mailflare self-hosted image: SPA and HTTP API, SMTP listener, job queues and
 # backups in one Node process. Data lives in /data (mount a volume).
 FROM node:22-bookworm-slim AS base
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1 MAILFLARE_RUNTIME=node
+ENV MAILFLARE_RUNTIME=node
 
 # better-sqlite3 ships prebuilt binaries for this image; the toolchain is only
 # a fallback for platforms without one.
@@ -13,9 +13,9 @@ RUN npm ci --ignore-scripts && npm rebuild better-sqlite3
 
 FROM deps AS build
 COPY . .
-ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
-ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY
-RUN npm run build:node && rm -rf .next-node/cache
+ARG VITE_TURNSTILE_SITE_KEY
+ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
+RUN npm run build:node
 
 # Production dependencies only. The Workers toolchain arrives as transitive
 # dependencies of the Cloudflare adapter and is never loaded here, so it goes.
@@ -26,12 +26,10 @@ RUN npm prune --omit=dev --ignore-scripts \
 FROM base AS runtime
 ENV NODE_ENV=production DATA_DIR=/data PORT=3000 SMTP_INBOUND_PORT=25
 COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
-COPY --chown=node:node --from=build /app/.next-node ./.next-node
 COPY --chown=node:node --from=build /app/dist ./dist
 COPY --chown=node:node --from=build /app/public ./public
 COPY --chown=node:node --from=build /app/drizzle ./drizzle
-COPY --chown=node:node --from=build /app/package.json /app/next.config.ts ./
-COPY --chown=node:node --from=build /app/src/lib/security/headers.ts ./src/lib/security/headers.ts
+COPY --chown=node:node --from=build /app/package.json ./
 RUN mkdir -p /data && chown node:node /data
 USER node
 VOLUME ["/data"]

@@ -1,0 +1,32 @@
+import { eq } from "drizzle-orm";
+import { ApiResponse } from "@/server/http/response";
+import { getDb } from "@/db";
+import { backups } from "@/db/schema";
+import { assertPrimaryAdmin } from "@/lib/auth/admin";
+import { requireUser } from "@/lib/auth/cookies";
+import { getEnv } from "@/lib/cloudflare";
+
+export async function GET(
+	request: Request,
+	{ params }: { params: Promise<{ id: string }> },
+) {
+	const env = getEnv();
+	try {
+		const user = await requireUser(env, request);
+		assertPrimaryAdmin(user);
+		const { id } = await params;
+		const [backup] = await getDb(env).select().from(backups).where(eq(backups.id, id)).limit(1);
+		if (!backup?.r2Key) return ApiResponse.json({ error: "Backup file not found" }, { status: 404 });
+		const object = await env.BUCKET.get(backup.r2Key);
+		if (!object) return ApiResponse.json({ error: "Backup file not found" }, { status: 404 });
+		return new Response(object.body, {
+			headers: {
+				"Content-Type": "application/sql",
+				"Content-Disposition": `attachment; filename="${backup.filename ?? `${backup.id}.sql`}"`,
+				"Content-Length": String(object.size),
+			},
+		});
+	} catch {
+		return ApiResponse.json({ error: "Forbidden" }, { status: 403 });
+	}
+}

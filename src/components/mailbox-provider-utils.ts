@@ -1,4 +1,6 @@
-import { authFetch, getClientSessionToken } from "@/lib/auth/client";
+import { readApiJson } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
+import { getClientSessionToken } from "@/lib/auth/client";
 import type { MailboxOption } from "./mailbox-provider";
 
 let mailboxesCache: MailboxOption[] | null = null;
@@ -38,10 +40,10 @@ export async function fetchMailboxOptions(force = false): Promise<MailboxOption[
 
 	const requestGeneration = cacheGeneration;
 	mailboxesRequestSessionToken = sessionToken;
-	mailboxesRequest = authFetch("/api/mailboxes")
-		.then((res) => res.json())
+	mailboxesRequest = apiRequest("/api/mailboxes", { method: "GET" })
+		.then(readApiJson)
 		.then((data) => {
-			const items = ((data as { mailboxes?: MailboxOption[] }).mailboxes ?? []).map((m) => ({
+			const items = (data.mailboxes ?? []).map((m) => ({
 				id: m.id,
 				domainId: m.domainId,
 				localPart: m.localPart,

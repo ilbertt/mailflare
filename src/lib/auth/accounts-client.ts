@@ -1,6 +1,6 @@
-"use client";
-
-import { authFetch, setClientSessionToken } from "@/lib/auth/client";
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
+import { setClientSessionToken } from "@/lib/auth/client";
 
 export type BrowserAccount = {
 	userId: string;
@@ -12,9 +12,9 @@ export type BrowserAccount = {
 
 export async function fetchBrowserAccounts(): Promise<BrowserAccount[]> {
 	try {
-		const res = await authFetch("/api/auth/accounts", { redirectOnUnauthorized: false, cache: "no-store" });
+		const res = await apiRequest("/api/auth/accounts", { method: "GET", redirectOnUnauthorized: false, cache: "no-store" });
 		if (!res.ok) return [];
-		return ((await res.json()) as { accounts: BrowserAccount[] }).accounts;
+		return (await readApiResult(res)).accounts;
 	} catch {
 		return [];
 	}
@@ -22,13 +22,8 @@ export async function fetchBrowserAccounts(): Promise<BrowserAccount[]> {
 
 /** Returns an error message, or null once the switch succeeded. */
 export async function switchBrowserAccount(userId: string): Promise<string | null> {
-	const res = await authFetch("/api/auth/switch", {
-		method: "POST",
-		redirectOnUnauthorized: false,
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ userId }),
-	});
-	const data = (await res.json().catch(() => ({}))) as { token?: string; error?: string };
+	const res = await apiRequest("/api/auth/switch", { method: "POST", redirectOnUnauthorized: false, headers: { "Content-Type": "application/json" }, json: { userId } });
+	const data = await readApiResult(res);
 	if (!res.ok || !data.token) return data.error ?? "Could not switch account";
 	setClientSessionToken(data.token);
 	return null;

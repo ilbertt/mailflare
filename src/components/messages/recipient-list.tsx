@@ -1,5 +1,3 @@
-"use client";
-
 import { ContactDetailsTrigger } from "@/components/contacts/contact-details";
 import { getEmailAddress } from "@/lib/email/address";
 import { formatRecipientAddress, recipientContactName, type RecipientAddressStyle } from "@/lib/email/recipient-display";

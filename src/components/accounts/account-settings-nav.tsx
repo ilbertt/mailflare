@@ -1,7 +1,6 @@
-"use client";
-
-import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { useLocation } from "@tanstack/react-router";
+import Link from "@/components/routing/link";
+import { useParams } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { SectionNavSheet } from "../section-nav-sheet";
 import {
@@ -11,8 +10,8 @@ import {
 } from "./account-settings-nav-utils";
 
 export function AccountSettingsNav() {
-	const { id } = useParams<{ id: string }>();
-	const pathname = usePathname();
+	const { id } = useParams({ from: "/_admin/accounts_/$id" });
+	const pathname = useLocation({ select: (location) => location.pathname });
 	const currentLabel = accountSettingsNavItems.find((item) => isActiveAccountSettingsPath(pathname, getAccountSettingsHref(id, item.segment)))?.label ?? "Account settings";
 
 	return (

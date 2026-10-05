@@ -1,5 +1,3 @@
-"use client";
-
 import { useRef, useState } from "react";
 import { Camera, LoaderCircle } from "lucide-react";
 import { dispatchContactAvatarChanged } from "@/lib/contacts/avatar-client";

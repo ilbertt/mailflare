@@ -1,6 +1,8 @@
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import { useEffect, useState } from "react";
-import { authFetch } from "@/lib/auth/client";
-import type { ThreadMessage, ThreadResponse } from "@/hooks/types";
+
+import type { ThreadMessage } from "@/hooks/types";
 import type { UseMessageThreadResult } from "./conversation-thread-types";
 
 /** Loads every message in the conversation of `messageId`; refetches when mail changes. */
@@ -15,8 +17,8 @@ export function useMessageThread(messageId: string, threadId: string | null | un
 		async function load() {
 			setLoading(true);
 			try {
-				const response = await authFetch(`/api/messages/${messageId}/thread`);
-				const data = (await response.json()) as ThreadResponse;
+				const response = await apiRequest("/api/messages/:messageId/thread", { method: "GET", param: { messageId: messageId } });
+				const data = await readApiResult(response);
 				if (!cancelled) setMessages(response.ok ? data.messages ?? [] : []);
 			} catch {
 				if (!cancelled) setMessages([]);

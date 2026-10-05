@@ -1,9 +1,10 @@
-import Link from "next/link";
+import { useLocation } from "@tanstack/react-router";
+import Link from "@/components/routing/link";
 import type { DragEvent } from "react";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
+
 import { getMessageDragData } from "@/lib/messages/drag-utils";
 import { useSidebar } from "./sidebar-state";
 import { useCompose } from "./compose/compose-context";
@@ -17,7 +18,7 @@ type Props = {
   wrap?: boolean
 }
 export function NavItem({ link, iconClassName, labelClassName, wrap }: Props) {
-  const pathname = usePathname();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const { openComposer } = useCompose();
   const { minimal } = useSidebar();
   const [dragOver, setDragOver] = useState(false);

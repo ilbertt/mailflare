@@ -1,14 +1,12 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { formatUserDate } from "@/lib/time/utils";
 import { ChevronsUpDown, Paperclip } from "lucide-react";
 import { ContactAvatar } from "@/components/contacts/contact-avatar";
 import { QuotedEmailToggle } from "@/components/messages/quoted-email-toggle";
 import { runSingleMessageAction } from "@/components/message-actions/utils";
-import { sanitizeEmailHtml } from "@/app/(dashboard)/inbox/[messageId]/email-html-sanitizer";
-import { collapseQuotedEmailHtml } from "@/app/(dashboard)/inbox/[messageId]/quote-collapse-utils";
-import { getMessageBodyDisplay, resolveInlineAttachmentUrls } from "@/app/(dashboard)/inbox/[messageId]/utils";
+import { sanitizeEmailHtml } from "@/components/screens/(dashboard)/inbox/[messageId]/email-html-sanitizer";
+import { collapseQuotedEmailHtml } from "@/components/screens/(dashboard)/inbox/[messageId]/quote-collapse-utils";
+import { getMessageBodyDisplay, resolveInlineAttachmentUrls } from "@/components/screens/(dashboard)/inbox/[messageId]/utils";
 
 import { cn } from "@/lib/utils";
 import type { ConversationMessageCardProps, ConversationThreadProps } from "./conversation-thread-types";

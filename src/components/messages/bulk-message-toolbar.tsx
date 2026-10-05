@@ -1,5 +1,3 @@
-"use client";
-
 import { Archive, ArchiveRestore, ChevronDown, Folder, FolderInput, Inbox, Mail, MailOpen, MoreVertical, ShieldAlert, ShieldCheck, Trash2, Undo2, X } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -7,7 +5,7 @@ import { useSelectedMailbox } from "@/components/mailbox-provider";
 import { useMailboxFolders } from "./use-mailbox-folders";
 import { Tooltip } from "@/components/ui/tooltip";
 import { supportsPermanentDelete } from "@/lib/messages/permanent-delete-utils";
-import type { BulkMessageAction } from "@/app/api/messages/bulk/types";
+import type { BulkMessageAction } from "@/server/handlers/api/messages/bulk/types";
 import type { BulkMessageToolbarProps } from "./types";
 
 const menuItemClass = "flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-700 outline-none data-[disabled]:opacity-50 data-[highlighted]:bg-neutral-100";

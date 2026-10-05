@@ -1,4 +1,6 @@
-import { authFetch } from "@/lib/auth/client";
+import { readApiJson } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
+
 import type { Message } from "@/hooks/types";
 import type { CachedMessageDetail } from "./detail-cache-types";
 
@@ -30,8 +32,8 @@ export function primeMessageDetail(message: Message): void {
 export async function fetchCachedMessageDetail(messageId: string, force = false): Promise<CachedMessageDetail> {
 	if (!force && detailCache.has(messageId)) return detailCache.get(messageId) ?? {};
 	if (!force && detailRequests.has(messageId)) return detailRequests.get(messageId) ?? {};
-	const request = authFetch(`/api/messages/${messageId}`)
-		.then((response) => response.json() as Promise<CachedMessageDetail>)
+	const request = apiRequest("/api/messages/:messageId", { method: "GET", param: { messageId: messageId } })
+		.then((response) => readApiJson(response))
 		.then((data) => {
 			detailCache.set(messageId, data);
 			return data;

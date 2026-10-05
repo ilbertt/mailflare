@@ -1,7 +1,6 @@
-"use client";
-
+import { Link as RouteLink } from "@tanstack/react-router";
 import { useState } from "react";
-import Link from "next/link";
+
 import { Copy, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +48,7 @@ export function EmailClientsSettings() {
 					<Field label="Username" value="any value" onCopy={copy} copied={copied} />
 					<Field label="Password (API key)" value={key} onCopy={copy} copied={copied} mono />
 					<p className="text-xs text-neutral-500">
-						This key is shown once. You can revoke it in <Link href="/settings/api-keys" className="text-blue-700 underline">API keys</Link>. Session discovery is at <code>{server}/.well-known/jmap</code>.
+						This key is shown once. You can revoke it in <RouteLink to="/settings/api-keys" className="text-blue-700 underline">API keys</RouteLink>. Session discovery is at <code>{server}/.well-known/jmap</code>.
 					</p>
 				</div>
 			) : (

@@ -1,5 +1,3 @@
-"use client";
-
 import { createContext, useContext, useEffect, useId } from "react";
 import type { PageLoadingContextValue } from "./loading-transition-types";
 

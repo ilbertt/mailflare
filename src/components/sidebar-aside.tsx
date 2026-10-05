@@ -1,5 +1,3 @@
-"use client";
-
 import clsx from "clsx";
 import { Menu } from "lucide-react";
 import type { ReactNode } from "react";

@@ -1,4 +1,6 @@
-import { authFetch } from "@/lib/auth/client";
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
+
 import { parseSearchQuery } from "@/lib/search/query-utils";
 import { getUserTimeZone } from "@/lib/time/utils";
 import { setCachedMessageRead } from "@/lib/messages/detail-cache";
@@ -136,9 +138,8 @@ export async function fetchMessageCounts(mailboxId?: string | null, force = fals
 	const request = (async () => {
 		const params = new URLSearchParams();
 		if (mailboxId) params.set("mailboxId", mailboxId);
-		const query = params.toString();
-		const res = await authFetch(`/api/messages/counts${query ? `?${query}` : ""}`);
-		const data = (await res.json()) as { counts?: MessageCounts };
+		const res = await apiRequest("/api/messages/counts", { method: "GET", query: params });
+		const data = await readApiResult(res);
 		const counts = data.counts;
 		if (
 			counts &&
@@ -164,10 +165,10 @@ export async function fetchMessageList(params: URLSearchParams, force = false): 
 	if (!force && messageListRequests.has(key)) return messageListRequests.get(key) ?? {};
 
 	const requestGeneration = messageCacheGeneration;
-	const request = authFetch(`/api/messages?${key}`)
-		.then((res) => res.json())
+	const request = apiRequest("/api/messages", { method: "GET", query: `${key}` })
+		.then(readApiResult)
 		.then((data) => {
-			const response = data as MessageListResponse;
+			const response = data;
 			if (requestGeneration === messageCacheGeneration) {
 				messageListCache.set(key, response);
 			}

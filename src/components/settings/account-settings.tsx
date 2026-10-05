@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ForwardingEmailForm } from "./forwarding-email-form";
@@ -61,7 +59,7 @@ export function AccountSettings() {
 						email={user.email}
 					/>
 
-					<TimeZoneForm userId={user.id} initialTimeZone={user.timeZone} />
+					<TimeZoneForm userId={user.id} initialTimeZone={user.timeZone ?? null} />
 
 					{user.canForwardEmail && (
 						<div className="space-y-4 rounded-lg bg-white p-6">

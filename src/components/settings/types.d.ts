@@ -21,6 +21,7 @@ export type AccountSettingsResponse = {
 		email: string;
 		name: string;
 		resetEmail: string | null;
+		timeZone?: string | null;
 		forwardingEmail: string | null;
 		canForwardEmail: boolean;
 	};

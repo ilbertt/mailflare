@@ -1,5 +1,7 @@
+import { readApiResult } from "@/lib/api/json";
+import { apiRequest } from "@/lib/api/request";
 import type { Message } from "@/hooks/types";
-import { authFetch } from "@/lib/auth/client";
+
 import { markMessagesReadInCaches } from "@/hooks/utils";
 import { getEmailDisplayName, splitEmailAddressList } from "@/lib/email/address";
 import { formatUserDate, getUserTimeZone, zonedDateFields } from "@/lib/time/utils";
@@ -7,8 +9,7 @@ import type { MailboxOption } from "@/components/mailbox-provider";
 import type { EmailPageTitleInput } from "./types";
 import type { MessageFolderConfig } from "./types";
 import type { PageRange } from "./types";
-import type { PermanentDeleteFolder } from "@/app/api/messages/bulk/types";
-import type { EmptyFolderResponse } from "@/app/api/messages/empty/types";
+import type { PermanentDeleteFolder } from "@/server/handlers/api/messages/bulk/types";
 
 export function getMessageParty(
 	message: Message,
@@ -82,12 +83,8 @@ export function formatEmailPageTitle({ location, total, unread, emailAddress }: 
 	return `${location} (${count})${suffix}`;
 }
 
-export async function runBulkMessageAction(messageIds: string[], action: string, notify = true, folderId?: string) {
-	const response = await authFetch("/api/messages/bulk", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ messageIds, action, folderId }),
-	});
+export async function runBulkMessageAction(messageIds: string[], action: import("@/server/handlers/api/messages/bulk/types").BulkMessageAction, notify = true, folderId?: string) {
+	const response = await apiRequest("/api/messages/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, json: { messageIds, action, folderId } });
 
 	if (!response.ok) throw new Error("Unable to update selected messages");
 	if (action === "read" || action === "unread") markMessagesReadInCaches(messageIds, action === "read");
@@ -101,12 +98,8 @@ export async function runBulkMessageAction(messageIds: string[], action: string,
 export async function emptyMessageFolder(mailboxId: string, folder: PermanentDeleteFolder): Promise<number> {
 	let deletedTotal = 0;
 	for (;;) {
-		const response = await authFetch("/api/messages/empty", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ mailboxId, folder }),
-		});
-		const data = (await response.json().catch(() => ({}))) as EmptyFolderResponse;
+		const response = await apiRequest("/api/messages/empty", { method: "POST", headers: { "Content-Type": "application/json" }, json: { mailboxId, folder } });
+		const data = await readApiResult(response);
 		if (!response.ok) throw new Error(data.error ?? "Unable to empty folder");
 		deletedTotal += data.deleted ?? 0;
 		if (!data.remaining || !data.deleted) break;

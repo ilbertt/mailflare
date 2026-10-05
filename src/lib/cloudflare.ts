@@ -1,8 +1,8 @@
-import { env } from "cloudflare:workers";
+import { getRequestContext } from "@/server/http/request-context";
 import { getNodeEnv } from "@/lib/runtime";
 
 export function getEnv(): CloudflareEnv {
-	return getNodeEnv() ?? (env as CloudflareEnv);
+	return getNodeEnv() ?? getRequestContext().env;
 }
 
 export async function getEnvAsync(): Promise<CloudflareEnv> {

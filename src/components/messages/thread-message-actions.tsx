@@ -1,10 +1,8 @@
-"use client";
-
 import { createElement, useEffect, useState } from "react";
 import { Ban, FileCode2, Forward, Mail, MailOpen, MoreVertical, Reply, ReplyAll, Star } from "lucide-react";
 import { useCompose } from "@/components/compose/compose-context";
 import { MessageSourceDialog } from "@/components/messages/message-source-dialog";
-import { getOwnAddressForMessage } from "@/app/(dashboard)/inbox/[messageId]/utils";
+import { getOwnAddressForMessage } from "@/components/screens/(dashboard)/inbox/[messageId]/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -49,7 +47,7 @@ export function ThreadMessageActions({
 		setPending(true);
 		setError(null);
 		try {
-			setStarred(await toggleMessageStar(message.id));
+			setStarred((await toggleMessageStar(message.id)).starred);
 		} catch (nextError) {
 			setError(nextError instanceof Error ? nextError.message : "Unable to update star");
 		} finally {

@@ -11,7 +11,7 @@ after(() => rmSync(directory, { recursive: true, force: true }));
 await build({
 	stdin: {
 		contents: `
-			export { isAllowedBulkMessageAction, getStatusForBulkAction, getReadValueForBulkAction, isPermanentlyDeletableStatus, isPermanentDeleteFolder } from "./src/app/api/messages/bulk/utils.ts";
+			export { isAllowedBulkMessageAction, getStatusForBulkAction, getReadValueForBulkAction, isPermanentlyDeletableStatus, isPermanentDeleteFolder } from "./src/server/handlers/api/messages/bulk/utils.ts";
 			export { supportsPermanentDelete, getEmptyFolderLabel, getPermanentDeleteConfirmText, getEmptyFolderConfirmText } from "./src/lib/messages/permanent-delete-utils.ts";
 			export { TRASH_RETENTION_OPTIONS, getTrashRetentionCutoff, normalizeTrashRetentionDays, describeTrashRetention } from "./src/lib/email/trash-retention-utils.ts";
 			export { updateTrashRetentionSettingsSchema } from "./src/lib/validators.ts";

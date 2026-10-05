@@ -1,5 +1,3 @@
-"use client";
-
 import { useRef } from "react";
 import { ResizeHandle } from "./ui/resize-handle";
 import { useSidebar } from "./sidebar-state";

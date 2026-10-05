@@ -1,12 +1,8 @@
-"use client";
-
+import { readApiResult } from "@/lib/api/json";
+import type { HttpResponse } from "@/lib/api/json";
 import { getUserTimeZone } from "@/lib/time/utils";
 import { clearUserTimeZonePreference } from "@/lib/time/client";
-import type {
-	AuthFetchOptions,
-	AuthSessionChangedDetail,
-	AuthSessionResponse,
-} from "./client-types";
+import type { AuthFetchOptions, AuthSessionChangedDetail } from "./client-types";
 
 const SESSION_STORAGE_KEY = "mailflare-session-token";
 export const AUTH_SESSION_CHANGED_EVENT = "mailflare:auth-session-changed";
@@ -65,8 +61,8 @@ export async function authFetch(input: RequestInfo | URL, init: AuthFetchOptions
 	return response;
 }
 
-export async function persistAuthSession(response: Response): Promise<AuthSessionResponse> {
-	const data = (await response.json()) as AuthSessionResponse;
-	if (response.ok && data.token) setClientSessionToken(data.token);
-	return data;
+export async function persistAuthSession<R extends HttpResponse>(response: R) {
+ const data = await readApiResult(response);
+ if (response.ok && "token" in data && typeof data.token === "string") setClientSessionToken(data.token);
+ return data;
 }

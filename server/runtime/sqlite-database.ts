@@ -80,7 +80,7 @@ class SqlitePreparedStatement {
 		const statement = this.statement();
 		const rows = statement.raw(true).all(...this.params) as T[];
 		if (options?.columnNames) {
-			const names = statement.columns().map((column) => column.name) as unknown as T;
+			const names = statement.columns().map((column: { name: string }) => column.name) as unknown as T;
 			return [names, ...rows];
 		}
 		return rows;

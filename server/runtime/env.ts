@@ -52,8 +52,6 @@ export function createNodeRuntime(): NodeRuntime {
 		AI_API_KEY: optional("AI_API_KEY"),
 		REALTIME: realtime.namespace(),
 		ASSETS: openAssets(publicDir),
-		IMAGES: undefined as unknown as CloudflareEnv["IMAGES"],
-		WORKER_SELF_REFERENCE: undefined as unknown as CloudflareEnv["WORKER_SELF_REFERENCE"],
 		LOGIN_RATE_LIMIT: openRateLimiter(20, 60),
 		AGENT_RATE_LIMIT: openRateLimiter(120, 60),
 		CF_TOKEN: optional("CF_TOKEN"),

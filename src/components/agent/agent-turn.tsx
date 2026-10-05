@@ -1,8 +1,6 @@
-"use client";
-
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import Link from "next/link";
+import Link from "@/components/routing/link";
 import remarkGfm from "remark-gfm";
 import { ChevronDown, Clock3 } from "lucide-react";
 import type { AgentTurnProps } from "./types";

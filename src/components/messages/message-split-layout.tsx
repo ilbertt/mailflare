@@ -1,6 +1,5 @@
-"use client";
+import { useLocation } from "@tanstack/react-router";
 
-import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSidebar } from "@/components/sidebar-state";
 import { useAssistantOpen } from "@/components/agent/assistant-open-state";
@@ -18,7 +17,7 @@ export function MessageSplitLayout({
 	children,
 	config,
 }: MessageSplitLayoutProps) {
-	const pathname = usePathname();
+	const pathname = useLocation({ select: (location) => location.pathname });
 	const [selectedMessages, setSelectedMessages] = useState<SelectedMessage[]>([]);
 	const [listWidth, setListWidth] = useState(360);
 	const [widthReady, setWidthReady] = useState(false);
