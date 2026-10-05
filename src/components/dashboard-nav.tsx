@@ -54,19 +54,18 @@ import { useSidebar } from "./sidebar-state";
 
 const links = [
   { href: "/compose", label: "Compose", icon: MailPlus, primary: true },
-  { href: "/inbox", label: "Inbox", icon: Inbox, preloadMessages: true },
-  { href: "/starred", label: "Starred", icon: Star, preloadMessages: true },
-  { href: "/snoozed", label: "Snoozed", icon: Clock, preloadMessages: true },
-  { href: "/sent", label: "Sent", icon: Send, preloadMessages: true },
-  { href: "/drafts", label: "Drafts", icon: FileText, preloadMessages: true },
+  { href: "/inbox", label: "Inbox", icon: Inbox },
+  { href: "/starred", label: "Starred", icon: Star },
+  { href: "/snoozed", label: "Snoozed", icon: Clock },
+  { href: "/sent", label: "Sent", icon: Send },
+  { href: "/drafts", label: "Drafts", icon: FileText },
   {
     href: "/archived",
     label: "Archived",
     icon: Archive,
-    preloadMessages: true,
   },
-  { href: "/spam", label: "Spam", icon: ShieldAlert, preloadMessages: true },
-  { href: "/trash", label: "Trash", icon: Trash2, preloadMessages: true },
+  { href: "/spam", label: "Spam", icon: ShieldAlert },
+  { href: "/trash", label: "Trash", icon: Trash2 },
 ];
 
 // Drafts, Archived, Spam and Trash start tucked under "More...".
@@ -332,7 +331,6 @@ export function DashboardNav({ className }: { className?: string }) {
                   href: `/folders/${folder.id}`,
                   label: folder.name,
                   icon: Folder,
-                  preloadMessages: true,
                   iconColor: folder.color,
                   count: counts.customFolders[folder.id]?.unread,
                   onMessageDrop: (messageIds: string[]) =>
