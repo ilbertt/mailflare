@@ -103,7 +103,9 @@ export function AdminUpdateCard() {
 
 				{!isChecking && status?.configured === false && (
 					<div className="space-y-3">
-						<p className="text-sm text-neutral-600">Complete the required Cloudflare Worker configuration:</p>
+						<p className="text-sm text-neutral-600">
+							Configure GitHub updates to update Mailflare from this page. Database updates are available below without these settings.
+						</p>
 						<ul className="divide-y divide-neutral-100 overflow-hidden rounded-2xl border border-neutral-100">
 							{status.configuration?.map((item) => (
 								<li key={item.name} className="flex items-center gap-3 px-4 py-3 text-sm">
@@ -146,39 +148,48 @@ export function AdminUpdateCard() {
 								</button>
 							)}
 						</div>
-
-						{isCheckingMigrations && (
-							<div className="flex items-center gap-3 px-4 py-4">
-								<Skeleton className="h-4 w-4 rounded-full" />
-								<Skeleton className="h-4 w-44" />
-							</div>
-						)}
-
-						{!isCheckingMigrations && !!migrationStatus?.pending.length && !migrationStatus.unknown.length && (
-							<div className="flex items-center gap-3 px-4 py-4">
-								<Database className={`h-4 w-4 shrink-0 text-amber-600 ${isMigrating ? "animate-pulse" : ""}`} />
-								<p className="text-sm text-neutral-700">
-									{migrationStatus.pending.length} database {migrationStatus.pending.length === 1 ? "migration is" : "migrations are"} pending.
-								</p>
-								<button
-									type="button"
-									onClick={handleMigrate}
-									disabled={isMigrating}
-									className="ml-auto shrink-0 text-sm font-medium text-blue-700 hover:underline disabled:pointer-events-none disabled:opacity-50"
-								>
-									{isMigrating ? "Updating database..." : "Update database"}
-								</button>
-							</div>
-						)}
-
-						{!isCheckingMigrations && !!migrationStatus?.unknown.length && (
-							<div className="flex items-center gap-3 px-4 py-4 text-sm text-red-600">
-								<CircleX className="h-4 w-4 shrink-0" />
-								Deploy the matching Mailflare release before changing this database.
-							</div>
-						)}
 					</div>
 				)}
+
+				<div className="divide-y divide-neutral-100 overflow-hidden rounded-2xl border border-neutral-100">
+					{isCheckingMigrations && (
+						<div className="flex items-center gap-3 px-4 py-4">
+							<Skeleton className="h-4 w-4 rounded-full" />
+							<Skeleton className="h-4 w-44" />
+						</div>
+					)}
+
+					{!isCheckingMigrations && !!migrationStatus?.pending.length && !migrationStatus.unknown.length && (
+						<div className="flex items-center gap-3 px-4 py-4">
+							<Database className={`h-4 w-4 shrink-0 text-amber-600 ${isMigrating ? "animate-pulse" : ""}`} />
+							<p className="text-sm text-neutral-700">
+								{migrationStatus.pending.length} database {migrationStatus.pending.length === 1 ? "migration is" : "migrations are"} pending.
+							</p>
+							<button
+								type="button"
+								onClick={handleMigrate}
+								disabled={isMigrating}
+								className="ml-auto shrink-0 text-sm font-medium text-blue-700 hover:underline disabled:pointer-events-none disabled:opacity-50"
+							>
+								{isMigrating ? "Updating database..." : "Update database"}
+							</button>
+						</div>
+					)}
+
+					{!isCheckingMigrations && !!migrationStatus?.unknown.length && (
+						<div className="flex items-center gap-3 px-4 py-4 text-sm text-red-600">
+							<CircleX className="h-4 w-4 shrink-0" />
+							Deploy the matching Mailflare release before changing this database.
+						</div>
+					)}
+
+					{!isCheckingMigrations && migrationStatus?.ready && (
+						<div className="flex items-center gap-3 px-4 py-4 text-sm text-neutral-700">
+							<CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+							Database is up to date.
+						</div>
+					)}
+				</div>
 
 				{result?.ok && (
 					<p className="text-sm text-green-700">
