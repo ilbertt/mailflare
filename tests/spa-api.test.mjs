@@ -70,6 +70,16 @@ test('typed client serializes JSON and params and preserves cookie/Bearer authen
  assert.equal((await fetchApi('/api/auth/me',{headers:{Cookie:cookie}})).status,401);
 });
 
+test('static message and booking endpoints take precedence over parameter routes', async t => {
+ const { fetchApi, cookie } = await fixture(t);
+ const counts = await fetchApi('/api/messages/counts', { headers: { Cookie: cookie } });
+ assert.equal(counts.status, 200); assert.equal((await counts.json()).counts.folders.inbox.total, 0);
+ const navigation = await fetchApi('/api/messages/navigation?folder=inbox', { headers: { Cookie: cookie } });
+ assert.equal(navigation.status, 200); assert.deepEqual((await navigation.json()).messages, []);
+ const settings = await fetchApi('/api/booking/settings', { method: 'PATCH', headers: { Cookie: cookie, Origin: 'http://mailflare.test', 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'owner-preview' }) });
+ assert.equal(settings.status, 200); assert.equal((await settings.json()).username, 'owner-preview');
+});
+
 test('request context isolates concurrent Worker environments and cookie sessions',async t=> {
  const a = await fixture(t,'first'); const b = await fixture(t,'second');
  const responses = await Promise.all([a.fetchApi('/api/auth/me',{headers:{Cookie:a.cookie}}),b.fetchApi('/api/auth/me',{headers:{Cookie:b.cookie}})]);

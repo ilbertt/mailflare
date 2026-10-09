@@ -13,6 +13,9 @@ export default defineConfig(() => ({
 		{ name: "mailflare-bootstrap", transformIndexHtml: () => [{ tag: "script", children: sidebarBootstrapScript + "\n" + themeBootstrapScript, injectTo: "head-prepend" as const }] },
 		tanstackRouter({ target: "react", autoCodeSplitting: true }),
 		react(),
-		...(process.env.MAILFLARE_RUNTIME === "node" ? [] : [cloudflare({ remoteBindings: process.env.CLOUDFLARE_REMOTE_BINDINGS === "true" })]),
+		...(process.env.MAILFLARE_RUNTIME === "node" ? [] : [cloudflare({
+			remoteBindings: process.env.MAILFLARE_LOCAL_PREVIEW === "true" ? false : process.env.CLOUDFLARE_REMOTE_BINDINGS === "true",
+			...(process.env.MAILFLARE_LOCAL_PREVIEW === "true" ? { persistState: { path: ".wrangler/local-preview" } } : {}),
+		})]),
 	],
 }));

@@ -117,6 +117,17 @@ See [docs/self-hosting.md](docs/self-hosting.md).
 
 ## Local development
 
+For a local environment that follows the Cloudflare deployment closely, run:
+
+```bash
+npm ci
+npm run local:preview
+```
+
+Open [http://localhost:3000](http://localhost:3000). Sign in with `admin@mailflare.test` / `local-preview-password`, or `member@mailflare.test` with the same password to test regular-user permissions. This runs the compiled production Worker with persistent local D1, R2, queues, and Durable Objects. Remote bindings are disabled. Run `npm run local:check` in another terminal to verify the local mail, storage, authentication, realtime, and scheduling flows. See [local preview details](docs/router-spa.md#production-like-local-preview) for restart commands and differences from deployment.
+
+For hot-reloading development instead:
+
 ```bash
 cp .dev.vars.example .dev.vars
 npm install

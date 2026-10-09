@@ -24,7 +24,11 @@
     "dev:node": "npm run db:bundle && node scripts/dev-node.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
-    "routes:generate": "node scripts/generate-routes.mjs"
+    "routes:generate": "node scripts/generate-routes.mjs",
+    "local:setup": "npm run db:bundle && node scripts/setup-local-preview.mjs",
+    "local:preview": "npm run local:setup && npm run build && npm run local:start",
+    "local:start": "MAILFLARE_LOCAL_PREVIEW=true vite preview --host localhost --port 3000 --strictPort",
+    "local:check": "node scripts/check-local-preview.mjs"
   },
   "cloudflare": {
     "bindings": {
