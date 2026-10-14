@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { ChevronUp, FileText, Forward, Maximize2, Minimize2, Minus, Paperclip, Reply, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,13 +13,17 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useSelectedMailbox } from "@/components/mailbox-provider";
 import { authFetch } from "@/lib/auth/client";
 import { formatEmailAddress, getEmailAddress } from "@/lib/email/address";
+import { useCompose } from "@/components/compose/compose-context";
 import { cn } from "@/lib/utils";
 import { SendReview } from "@/components/agent/send-review";
 import type { ReviewSnapshot } from "@/components/agent/send-review-types";
+import { useIsMobile } from "@/components/sidebar-mobile-utils";
+import { useSheetViewport } from "./use-sheet-viewport";
 import { buildSendFormData, fetchDraft, formatAttachmentSize } from "./utils";
 import { RecipientInput } from "./recipient-input";
 import { RichTextEditor } from "./rich-text-editor";
 import { ScheduleSendMenu } from "./schedule-send-menu";
+import { isPastSchedule } from "./schedule-send-utils";
 import {
 	applyMailboxSignatureHtml,
 	hasMeaningfulHtml,
@@ -42,7 +47,9 @@ export function ComposeForm({
 	draftIdToLoad?: string | null;
 	onClose?: () => void;
 }) {
+	const { t } = useLanguage();
 	const router = useRouter();
+	const { showNotice } = useCompose();
 	const { selectedMailbox, setSelectedMailbox, mailboxes } = useSelectedMailbox();
 	const [draftId, setDraftId] = useState<string | null>(null);
 	const [agentRevision, setAgentRevision] = useState<number | null>(null);
@@ -72,8 +79,40 @@ export function ComposeForm({
 	const [loadedDraftMailboxId, setLoadedDraftMailboxId] = useState<string | null>(null);
 	const [loadedDraftFrom, setLoadedDraftFrom] = useState<string | null>(null);
 	const [selectedFrom, setSelectedFrom] = useState("");
+	const formRef = useRef<HTMLFormElement>(null);
+	useSheetViewport(formRef, mode === "popup");
+	const isPhone = useIsMobile();
+	const phoneSheet = mode === "popup" && isPhone;
+	const [closing, setClosing] = useState(false);
+	const dragStart = useRef<number | null>(null);
+	const [dragY, setDragY] = useState(0);
+
+	// Phones: slide the sheet away and let the page behind grow back before unmounting.
+	function dismiss() {
+		if (!onClose) return;
+		if (!phoneSheet || closing) { onClose(); return; }
+		setClosing(true);
+		window.setTimeout(onClose, 260);
+	}
+
+	const sheetDrag = phoneSheet ? {
+		onTouchStart: (event: React.TouchEvent) => { dragStart.current = event.touches[0].clientY; },
+		onTouchMove: (event: React.TouchEvent) => {
+			if (dragStart.current !== null) setDragY(Math.max(0, event.touches[0].clientY - dragStart.current));
+		},
+		onTouchEnd: () => {
+			dragStart.current = null;
+			if (dragY > 110) dismiss();
+			setDragY(0);
+		},
+	} : {};
 	const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const pendingSave = useRef<(() => Promise<void>) | null>(null);
 	const draftGeneration = useRef(0);
+	const draftIdRef = useRef<string | null>(null);
+	const saveQueue = useRef<Promise<void>>(Promise.resolve());
+	const uploadedFiles = useRef(new WeakSet<File>());
+	const rejectedFiles = useRef(new WeakSet<File>());
 	const attachmentInput = useRef<HTMLInputElement | null>(null);
 	const fileDragDepth = useRef(0);
 	const previousSignature = useRef("");
@@ -132,6 +171,7 @@ export function ComposeForm({
 			.then((draft) => {
 				if (cancelled) return;
 
+				draftIdRef.current = draft.id;
 				setDraftId(draft.id);
 				setAgentRevision(draft.agent?.revision ?? null);
 				setScheduledAt(draft.agent?.scheduledAt ? new Date(draft.agent.scheduledAt) : null);
@@ -161,7 +201,7 @@ export function ComposeForm({
 			})
 			.catch((err) => {
 				if (cancelled) return;
-				const message = err instanceof Error ? err.message : "Failed to load draft";
+				const message = err instanceof Error ? err.message : t("compose.error.loadDraft");
 				setToast({ type: "error", message });
 			})
 			.finally(() => {
@@ -193,65 +233,109 @@ export function ComposeForm({
 		previousSignature.current = nextSignature;
 	}, [loadingDraft, selectedMailbox?.id, selectedMailbox?.signature]);
 
+	useEffect(() => () => {
+		void pendingSave.current?.();
+	}, []);
+
 	useEffect(() => {
+		pendingSave.current = null;
 		const bodyContent = htmlToPlainText(html).trim();
 		const signatureOnly = bodyContent === (selectedMailbox?.signature?.trim() ?? "");
 		const hasContent =
-			to.length > 0 || cc.length > 0 || bcc.length > 0 || subject.trim() || quotedHtml || (bodyContent && !signatureOnly);
+			to.length > 0 || cc.length > 0 || bcc.length > 0 || subject.trim() || quotedHtml || attachments.length > 0 || (bodyContent && !signatureOnly);
 		if (!fromAddr || !hasContent || loadingDraft) return;
 		if (saveTimer.current) clearTimeout(saveTimer.current);
 
 		const generation = draftGeneration.current;
-		saveTimer.current = setTimeout(async () => {
-			const payload = {
-				mailboxId: selectedMailbox?.id,
-				from: fromAddr,
-				to: recipientsToHeader(to),
-				cc: recipientsToHeader(cc),
-				bcc: recipientsToHeader(bcc),
-				subject,
-				html: joinQuotedHtml(html, quotedHtml),
-				text: htmlToPlainText(joinQuotedHtml(html, quotedHtml)),
-				inReplyTo: threading?.inReplyTo ?? null,
-				references: threading?.references ?? null,
-				threadId: threading?.threadId ?? null,
-			};
-			const res = await authFetch(draftId ? `/api/drafts/${draftId}` : "/api/drafts", {
-				method: draftId ? "PATCH" : "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
-			});
-			const data = (await res.json()) as { draft?: { id: string } };
-			if (res.ok && data.draft?.id) {
+		const save = () => {
+			const run = saveQueue.current.then(async () => {
+				if (generation !== draftGeneration.current) return;
+				const payload = {
+					mailboxId: selectedMailbox?.id,
+					from: fromAddr,
+					to: recipientsToHeader(to),
+					cc: recipientsToHeader(cc),
+					bcc: recipientsToHeader(bcc),
+					subject,
+					html: joinQuotedHtml(html, quotedHtml),
+					text: htmlToPlainText(joinQuotedHtml(html, quotedHtml)),
+					inReplyTo: threading?.inReplyTo ?? null,
+					references: threading?.references ?? null,
+					threadId: threading?.threadId ?? null,
+				};
+				const existingId = draftIdRef.current;
+				const res = await authFetch(existingId ? `/api/drafts/${existingId}` : "/api/drafts", {
+					method: existingId ? "PATCH" : "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(payload),
+				});
+				const data = (await res.json()) as { draft?: { id: string } };
+				if (!res.ok || !data.draft?.id) return;
 				if (generation !== draftGeneration.current) {
-					void authFetch(`/api/drafts/${data.draft.id}`, { method: "DELETE" });
+					if (!existingId) void authFetch(`/api/drafts/${data.draft.id}`, { method: "DELETE" });
 					return;
 				}
+				draftIdRef.current = data.draft.id;
 				setDraftId(data.draft.id);
-			}
+				const pending = attachments.filter((attachment) => !uploadedFiles.current.has(attachment.file) && !rejectedFiles.current.has(attachment.file));
+				if (agentRevision !== null || pending.length === 0) return;
+				const form = new FormData();
+				for (const attachment of pending) form.append("attachments", attachment.file);
+				const uploaded = await authFetch(`/api/drafts/${data.draft.id}/attachments`, { method: "POST", body: form });
+				const result = (await uploaded.json()) as { attachments?: ComposeStoredAttachment[]; error?: string };
+				if (!uploaded.ok) {
+					for (const attachment of pending) rejectedFiles.current.add(attachment.file);
+					setToast({ type: "error", message: result.error || t("compose.error.draftAttachments") });
+					return;
+				}
+				for (const attachment of pending) uploadedFiles.current.add(attachment.file);
+				setStoredAttachments((current) => [...current, ...(result.attachments ?? [])]);
+				setAttachments((current) => current.filter((attachment) => !uploadedFiles.current.has(attachment.file)));
+			}).catch(() => {});
+			saveQueue.current = run;
+			return run;
+		};
+		pendingSave.current = save;
+		saveTimer.current = setTimeout(() => {
+			pendingSave.current = null;
+			void save();
 		}, 900);
 
 		return () => {
 			if (saveTimer.current) clearTimeout(saveTimer.current);
 		};
-	}, [bcc, cc, draftId, fromAddr, html, loadingDraft, quotedHtml, selectedMailbox?.id, selectedMailbox?.signature, subject, threading, to]);
+	}, [agentRevision, attachments, bcc, cc, fromAddr, html, loadingDraft, quotedHtml, selectedMailbox?.id, selectedMailbox?.signature, subject, threading, to]);
+
+	useEffect(() => {
+		if (!draftIdToLoad || loadingDraft) return;
+		formRef.current?.querySelector<HTMLElement>("[contenteditable='true']")?.focus();
+	}, [draftIdToLoad, loadingDraft]);
 
 	async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		if (to.length === 0) {
-			setToast({ type: "error", message: "Add at least one recipient" });
+			setToast({ type: "error", message: t("compose.error.noRecipient") });
 			return;
 		}
 		const invalid = [...to, ...cc, ...bcc].find((entry) => !isValidRecipient(entry));
 		if (invalid) {
-			setToast({ type: "error", message: `"${invalid}" is not a valid email address` });
+			setToast({ type: "error", message: t("compose.error.invalidAddress", { address: invalid }) });
 			return;
 		}
 		if (!hasMeaningfulHtml(html) && !quotedHtml) {
-			setToast({ type: "error", message: "Write a message before sending" });
+			setToast({ type: "error", message: t("compose.error.emptyBody") });
 			return;
 		}
+		if (scheduledAt && isPastSchedule(scheduledAt)) {
+			setToast({ type: "error", message: t("schedule.pastTime") });
+			return;
+		}
+		if (saveTimer.current) clearTimeout(saveTimer.current);
+		pendingSave.current = null;
 		setLoading(true);
+		await saveQueue.current;
+		const currentDraftId = draftIdRef.current;
+		const unsentAttachments = attachments.filter((attachment) => !uploadedFiles.current.has(attachment.file));
 		const fullHtml = joinQuotedHtml(html, quotedHtml);
 		if (draftId && agentRevision !== null) {
 			try {
@@ -261,53 +345,63 @@ export function ComposeForm({
 					for (const attachment of attachments) form.append("attachments", attachment.file);
 					const uploaded = await authFetch(`/api/drafts/${draftId}/attachments`, { method: "POST", body: form });
 					const result = await uploaded.json() as { attachments?: ComposeStoredAttachment[]; error?: string };
-					if (!uploaded.ok) throw new Error(result.error || "Could not add attachments to the draft");
+					if (!uploaded.ok) throw new Error(result.error || t("compose.error.draftAttachments"));
 					setStoredAttachments((current) => [...current, ...(result.attachments ?? [])]);
 					setAttachments([]);
 				}
 				const updated = await authFetch(`/api/drafts/${draftId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mailboxId: selectedMailbox?.id, from: fromAddr, to: recipientsToHeader(to), cc: recipientsToHeader(cc), bcc: recipientsToHeader(bcc), subject, html: fullHtml, text: htmlToPlainText(fullHtml), inReplyTo: threading?.inReplyTo ?? null, references: threading?.references ?? null, threadId: threading?.threadId ?? null, scheduledAt: scheduledAt?.toISOString() ?? null }) });
-				if (!updated.ok) throw new Error("Could not save the draft for review");
+				if (!updated.ok) throw new Error(t("compose.error.saveForReview"));
 				const current = await fetchDraft(draftId);
-				if (!current.agent) throw new Error("AI draft metadata is missing");
+				if (!current.agent) throw new Error(t("compose.error.aiMetadata"));
 				setAgentRevision(current.agent.revision);
 				const response = await authFetch("/api/agent/approvals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId, expectedRevision: current.agent.revision }) });
 				const result = await response.json() as { approvalId?: string; snapshot?: ReviewSnapshot; error?: string };
-				if (!response.ok || !result.approvalId || !result.snapshot) throw new Error(result.error || "Could not create review");
+				if (!response.ok || !result.approvalId || !result.snapshot) throw new Error(result.error || t("compose.error.createReview"));
 				setAgentReview({ approvalId: result.approvalId, snapshot: result.snapshot });
-			} catch (cause) { setToast({ type: "error", message: cause instanceof Error ? cause.message : "Could not review draft" }); }
+			} catch (cause) { setToast({ type: "error", message: cause instanceof Error ? cause.message : t("compose.error.reviewDraft") }); }
 			finally { setLoading(false); }
 			return;
 		}
-		const res = await authFetch("/api/send", {
-			method: "POST",
-			body: buildSendFormData({
-				attachments,
-				from: fromAddr,
-				to: recipientsToHeader(to),
-				cc: recipientsToHeader(cc),
-				bcc: recipientsToHeader(bcc),
-				subject,
-				text: htmlToPlainText(fullHtml),
-				html: fullHtml,
-				mailboxId: selectedMailbox?.id,
-				threading: threading ?? undefined,
-				draftId,
-				scheduledAt,
-			}),
-		});
-		const data = (await res.json()) as { messageId?: string; scheduled?: boolean; error?: string };
+		let res: Response;
+		let data: { messageId?: string; scheduled?: boolean; error?: string };
+		try {
+			res = await authFetch("/api/send", {
+				method: "POST",
+				body: buildSendFormData({
+					attachments: unsentAttachments,
+					from: fromAddr,
+					to: recipientsToHeader(to),
+					cc: recipientsToHeader(cc),
+					bcc: recipientsToHeader(bcc),
+					subject,
+					text: htmlToPlainText(fullHtml),
+					html: fullHtml,
+					mailboxId: selectedMailbox?.id,
+					threading: threading ?? undefined,
+					draftId,
+					scheduledAt,
+				}),
+			});
+			data = (await res.json()) as { messageId?: string; scheduled?: boolean; error?: string };
+		} catch {
+			setLoading(false);
+			setToast({ type: "error", message: t("compose.error.sendFailed") });
+			return;
+		}
 		setLoading(false);
 
 		if (!res.ok) {
-			setToast({ type: "error", message: data.error ?? "Send failed" });
+			setToast({ type: "error", message: data.error ?? t("compose.error.sendFailed") });
 			return;
 		}
 
-		if (draftId) {
-			void authFetch(`/api/drafts/${draftId}`, { method: "DELETE" }).finally(() => {
+		if (currentDraftId) {
+			void authFetch(`/api/drafts/${currentDraftId}`, { method: "DELETE" }).finally(() => {
 				window.dispatchEvent(new Event("mailflare:messages-changed"));
 			});
 		}
+		draftGeneration.current += 1;
+		draftIdRef.current = null;
 		setDraftId(null);
 		setTo([]);
 		setCc([]);
@@ -321,24 +415,39 @@ export function ComposeForm({
 		setQuotedHtml(null);
 		setAttachments([]);
 		setScheduledAt(null);
-		setToast({ type: "success", message: data.scheduled ? "Message scheduled" : "Message sent" });
+		showNotice(data.scheduled ? t("compose.scheduled") : t("compose.sent"));
 		window.dispatchEvent(new Event("mailflare:messages-changed"));
+
+		if (onClose) {
+			dismiss();
+			return;
+		}
+		router.push("/sent");
 	}
 
 	async function deleteDraftAndClose() {
 		if (saveTimer.current) clearTimeout(saveTimer.current);
+		pendingSave.current = null;
 		draftGeneration.current += 1;
 		setDeletingDraft(true);
+		await saveQueue.current;
 
-		if (draftId) {
-			const res = await authFetch(`/api/drafts/${draftId}`, { method: "DELETE" });
-			if (!res.ok) {
+		if (draftIdRef.current) {
+			let deleted = false;
+			try {
+				const res = await authFetch(`/api/drafts/${draftIdRef.current}`, { method: "DELETE" });
+				deleted = res.ok || res.status === 404;
+			} catch {
+				deleted = false;
+			}
+			if (!deleted) {
 				setDeletingDraft(false);
-				setToast({ type: "error", message: "Could not delete draft" });
+				setToast({ type: "error", message: t("compose.error.deleteDraft") });
 				return;
 			}
 		}
 
+		draftIdRef.current = null;
 		setDraftId(null);
 		setTo([]);
 		setCc([]);
@@ -355,7 +464,7 @@ export function ComposeForm({
 		window.dispatchEvent(new Event("mailflare:messages-changed"));
 
 		if (onClose) {
-			onClose();
+			dismiss();
 			return;
 		}
 		setDeletingDraft(false);
@@ -363,10 +472,11 @@ export function ComposeForm({
 	}
 
 	async function removeStoredAttachment(attachmentId: string) {
-		if (!draftId) return;
-		const res = await authFetch(`/api/drafts/${draftId}/attachments/${attachmentId}`, { method: "DELETE" });
+		const currentDraftId = draftIdRef.current;
+		if (!currentDraftId) return;
+		const res = await authFetch(`/api/drafts/${currentDraftId}/attachments/${attachmentId}`, { method: "DELETE" });
 		if (!res.ok) {
-			setToast({ type: "error", message: "Could not remove attachment" });
+			setToast({ type: "error", message: t("compose.error.removeAttachment") });
 			return;
 		}
 		setStoredAttachments((current) => current.filter((item) => item.id !== attachmentId));
@@ -384,15 +494,15 @@ export function ComposeForm({
 			);
 
 		if (nextCount > 10) {
-			setToast({ type: "error", message: "A message can include at most 10 attachments" });
+			setToast({ type: "error", message: t("compose.error.maxAttachments") });
 			return;
 		}
 		if (nextFiles.some((file) => file.size > attachmentPolicy.maxMb * 1_000_000)) {
-			setToast({ type: "error", message: `Each attachment must be ${attachmentPolicy.maxMb} MB or smaller` });
+			setToast({ type: "error", message: t("compose.error.attachmentSize", { max: attachmentPolicy.maxMb }) });
 			return;
 		}
 		if (totalSize > attachmentPolicy.maxMb * 1_000_000) {
-			setToast({ type: "error", message: `Attachments must total ${attachmentPolicy.maxMb} MB or less` });
+			setToast({ type: "error", message: t("compose.error.totalSize", { max: attachmentPolicy.maxMb }) });
 			return;
 		}
 
@@ -443,18 +553,18 @@ export function ComposeForm({
 				<div
 					key={attachment.id}
 					className="flex max-w-full shrink-0 items-center gap-2 rounded-lg bg-neutral-100 px-2 py-1 text-xs"
-					title="Carried over from the forwarded message"
+					title={t("compose.carriedOver")}
 				>
 					<FileText className="h-4 w-4 shrink-0 text-neutral-500" />
 					<span className="max-w-48 truncate">{attachment.filename}</span>
-					<span className="text-xs text-neutral-400">{formatAttachmentSize(attachment.size)}</span>
+					<span className="text-xs text-neutral-500">{formatAttachmentSize(attachment.size)}</span>
 					<button
 						type="button"
 						onClick={() => void removeStoredAttachment(attachment.id)}
-						className="rounded-full p-1 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700"
+						className="rounded-full p-1 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700"
 					>
 						<X className="h-3.5 w-3.5" />
-						<span className="sr-only">Remove attachment</span>
+						<span className="sr-only">{t("compose.removeAttachment")}</span>
 					</button>
 				</div>
 			))}
@@ -465,7 +575,7 @@ export function ComposeForm({
 				>
 					<FileText className="h-4 w-4 shrink-0 text-neutral-500" />
 					<span className="max-w-48 truncate font-medium">{attachment.file.name}</span>
-					<span className="text-xs text-neutral-400">
+					<span className="text-xs text-neutral-500">
 						{formatAttachmentSize(attachment.file.size)}
 					</span>
 					<button
@@ -475,33 +585,36 @@ export function ComposeForm({
 								current.filter((item) => item.id !== attachment.id),
 							)
 						}
-						className="rounded-full p-1 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700"
+						className="rounded-full p-1 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700"
 					>
 						<X className="h-3.5 w-3.5" />
-						<span className="sr-only">Remove attachment</span>
+						<span className="sr-only">{t("compose.removeAttachment")}</span>
 					</button>
 				</div>
 			))}
 		</div>
-		<p className="px-3 pb-2 text-xs text-amber-700">Cloudflare limits general email messages to 5 MiB including encoding. Files over 3 MB{([...attachments.map((item) => item.file.size), ...storedAttachments.map((item) => item.size)].some((size) => size > attachmentPolicy.cloudThresholdBytes)) ? " here will" : " or files that exceed the message budget may"} be sent as 30-day R2 download links.</p>
+		<p className="px-3 pb-2 text-xs text-amber-700">{[...attachments.map((item) => item.file.size), ...storedAttachments.map((item) => item.size)].some((size) => size > attachmentPolicy.cloudThresholdBytes) ? t("compose.cloudWarning.will") : t("compose.cloudWarning.may")}</p>
 		</div>
 	);
 
+	// Below md the popup is a bottom sheet: full width, anchored to the visual viewport (so the keyboard never covers the toolbar) and padded by the bottom safe area.
+	const sheetClass = "compose-sheet max-md:inset-x-0 max-md:bottom-[var(--sheet-bottom,0px)] max-md:left-0 max-md:right-0 max-md:top-auto max-md:z-50 max-md:h-[var(--sheet-height,100dvh)] max-md:w-full max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-none max-md:border-0 max-md:pt-[env(safe-area-inset-top)] max-md:pb-[var(--sheet-pad,max(env(safe-area-inset-bottom),1rem))]";
 	const frameClass =
 		mode === "popup"
 			? minimized
-				? "fixed bottom-0 right-8 z-40 flex h-9 w-[min(260px,calc(100vw-32px))] flex-col overflow-hidden rounded-t-lg border border-neutral-200 bg-white shadow-2xl"
+				? cn("fixed bottom-0 right-8 z-40 flex h-9 w-[min(260px,calc(100vw-32px))] flex-col overflow-hidden rounded-t-lg border border-neutral-200 bg-white shadow-2xl", sheetClass)
 				: modalMode
-				? "fixed left-1/2 top-1/2 z-50 flex h-[86vh] w-[min(860px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
-				: "fixed bottom-0 right-8 z-40 flex h-[min(520px,calc(100vh-88px))] w-[min(560px,calc(100vw-32px))] flex-col overflow-hidden rounded-t-lg border border-neutral-200 bg-white shadow-2xl"
+				? cn("fixed left-1/2 top-1/2 z-50 flex h-[86vh] w-[min(860px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg bg-white shadow-2xl", sheetClass)
+				: cn("fixed bottom-0 right-8 z-40 flex h-[min(520px,calc(100vh-88px))] w-[min(560px,calc(100vw-32px))] flex-col overflow-hidden rounded-t-lg border border-neutral-200 bg-white shadow-2xl", sheetClass)
 			: "relative flex h-full min-h-[720px] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm";
 
 	return (
 		<>
-			{agentReview && <SendReview approvalId={agentReview.approvalId} snapshot={agentReview.snapshot} onClose={() => setAgentReview(null)} onSent={() => { setAgentReview(null); if (onClose) onClose(); else router.push("/sent"); }} />}
+			{agentReview && <SendReview approvalId={agentReview.approvalId} snapshot={agentReview.snapshot} onClose={() => setAgentReview(null)} onSent={() => { setAgentReview(null); if (onClose) dismiss(); else router.push("/sent"); }} />}
 			{mode === "popup" && modalMode && !minimized && <div className="fixed inset-0 z-40 bg-neutral-950/65" aria-hidden="true" />}
 			{toast && (
 				<div
+					role={toast.type === "error" ? "alert" : "status"}
 					className={cn(
 						"fixed right-6 top-6 z-[60] rounded-lg px-4 py-3 text-sm font-medium shadow-lg",
 						toast.type === "success" ? "bg-green-600 text-white" : "bg-red-600 text-white",
@@ -510,35 +623,35 @@ export function ComposeForm({
 					{toast.message}
 				</div>
 			)}
-			<form onSubmit={onSubmit} className={frameClass} role={modalMode && !minimized ? "dialog" : undefined} aria-modal={modalMode && !minimized || undefined} aria-label={modalMode && !minimized ? "Compose message" : undefined} onKeyDown={(event) => { if (modalMode && !minimized && event.key === "Escape") { event.preventDefault(); setModalMode(false); } }} onDragEnterCapture={minimized ? undefined : onFileDragEnter} onDragOverCapture={minimized ? undefined : onFileDragOver} onDragLeaveCapture={minimized ? undefined : onFileDragLeave} onDropCapture={minimized ? undefined : onFileDrop}>
+			<form onSubmit={onSubmit} className={cn(frameClass, closing && "compose-sheet-closing")} style={dragY ? { transform: `translateY(${dragY}px)`, transition: "none" } : undefined} ref={formRef} role={modalMode && !minimized ? "dialog" : mode === "popup" ? "region" : undefined} aria-modal={modalMode && !minimized || undefined} aria-label={mode === "popup" ? t("compose.dialogLabel") : undefined} onKeyDown={(event) => { if (modalMode && !minimized && event.key === "Escape") { event.preventDefault(); setModalMode(false); } }} onDragEnterCapture={minimized ? undefined : onFileDragEnter} onDragOverCapture={minimized ? undefined : onFileDragOver} onDragLeaveCapture={minimized ? undefined : onFileDragLeave} onDropCapture={minimized ? undefined : onFileDrop}>
 				{draggingFiles && !minimized && (
 					<div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center border-2 border-dashed border-blue-400 bg-blue-50/90 text-sm font-medium text-blue-700" aria-hidden="true">
-						Drop files to attach
+						{t("compose.dropFiles")}
 					</div>
 				)}
-				<div className="flex h-9 shrink-0 items-center justify-between bg-neutral-800 text-white dark:bg-neutral-100 px-4 text-sm font-medium">
+				<div {...sheetDrag} className="flex h-9 shrink-0 items-center justify-between max-md:h-12 max-md:touch-none bg-neutral-800 text-white dark:bg-neutral-100 px-4 text-sm font-medium">
 					<span className="flex min-w-0 items-center gap-2 truncate  dark:text-neutral-900">
 						{threading?.inReplyTo && <Reply className="h-3.5 w-3.5 text-neutral-300" />}
 						{!threading?.inReplyTo && /^fwd?:/i.test(subject) && <Forward className="h-3.5 w-3.5 text-neutral-300" />}
 						{loadingDraft
-							? "Loading draft"
+							? t("compose.title.loading")
 							: threading?.inReplyTo
-								? "Reply"
+								? t("compose.title.reply")
 								: /^fwd?:/i.test(subject)
-									? "Forward"
+									? t("compose.title.forward")
 									: draftId
-										? "Draft saved"
-										: "New Message"}
+										? t("compose.title.saved")
+										: t("compose.title.new")}
 					</span>
 					{mode === "popup" && (
 						<div className="flex shrink-0 items-center gap-3 text-neutral-300">
-							<button type="button" onClick={() => { setMinimized((current) => !current); setDraggingFiles(false); }} aria-label={minimized ? "Restore composer" : "Minimize composer"} title={minimized ? "Restore composer" : "Minimize composer"} className="rounded p-1 hover:bg-neutral-700 dark:hover:bg-neutral-200 hover:text-white">
+							<button type="button" onClick={() => { setMinimized((current) => !current); setDraggingFiles(false); }} aria-label={minimized ? t("compose.restore") : t("compose.minimize")} title={minimized ? t("compose.restore") : t("compose.minimize")} className="max-md:hidden rounded p-1 hover:bg-neutral-700 dark:hover:bg-neutral-200 hover:text-white">
 								{minimized ? <ChevronUp className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
 							</button>
-							<button type="button" onClick={() => { if (minimized) setMinimized(false); setModalMode((current) => !current); }} aria-label={modalMode ? "Restore floating composer" : "Open composer as modal"} title={modalMode ? "Restore floating composer" : "Open composer as modal"} className="rounded p-1 dark:hover:bg-neutral-200 hover:bg-neutral-700 hover:text-white">
+							<button type="button" onClick={() => { if (minimized) setMinimized(false); setModalMode((current) => !current); }} aria-label={modalMode ? t("compose.restoreFloating") : t("compose.openModal")} title={modalMode ? t("compose.restoreFloating") : t("compose.openModal")} className="max-md:hidden rounded p-1 dark:hover:bg-neutral-200 hover:bg-neutral-700 hover:text-white">
 								{modalMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
 							</button>
-							<button type="button" onClick={onClose} aria-label="Close composer" className="rounded p-1 hover:bg-neutral-700 dark:hover:bg-neutral-200 hover:text-white">
+							<button type="button" onClick={dismiss} aria-label={t("compose.close")} className="rounded p-1 max-md:-m-2 max-md:p-3 hover:bg-neutral-700 dark:hover:bg-neutral-200 hover:text-white">
 								<X className="h-4 w-4" />
 							</button>
 						</div>
@@ -546,7 +659,7 @@ export function ComposeForm({
 				</div>
 				<div className={cn("flex min-h-0 flex-1 flex-col", minimized && "hidden")}>
 				<div className="border-b border-neutral-100 px-4 py-1 flex flex-row items-center">
-					<Label htmlFor={`${mode}-from`} className="text-sm text-neutral-500">From</Label>
+					<Label htmlFor={`${mode}-from`} className="text-sm text-neutral-500">{t("compose.from")}</Label>
 					<Select
 						id={`${mode}-from`}
 						value={selectedMailbox && selectedFrom ? `${selectedMailbox.id}|${selectedFrom}` : ""}
@@ -557,7 +670,7 @@ export function ComposeForm({
 						className="h-8 px-0 py-1 text-sm shadow-none focus-visible:ring-0"
 						containerClassName="border-0 flex-1"
 					>
-						{senderOptions.length === 0 && <option value="">Select a mailbox first</option>}
+						{senderOptions.length === 0 && <option value="">{t("compose.selectMailboxFirst")}</option>}
 						{senderOptions.map(({ mailbox, address }) => (
 							<option key={`${mailbox.id}|${address}`} value={`${mailbox.id}|${address}`}>{address}</option>
 						))}
@@ -565,22 +678,23 @@ export function ComposeForm({
 				</div>
 				<RecipientInput
 					id={`${mode}-to`}
-					label="To"
+					label={t("compose.to")}
 					value={to}
 					onChange={setTo}
-					placeholder='Recipients, or "Maya Chen" <maya@example.com>'
+					placeholder={t("compose.toPlaceholder")}
 					required
+					autoFocus={!draftIdToLoad}
 					disabled={loadingDraft}
 					trailing={
 						<>
 							{!showCc && (
 								<button type="button" className="rounded px-1 hover:text-neutral-800" onClick={() => setShowCc(true)}>
-									Cc
+									{t("compose.cc")}
 								</button>
 							)}
 							{!showBcc && (
 								<button type="button" className="rounded px-1 hover:text-neutral-800" onClick={() => setShowBcc(true)}>
-									Bcc
+									{t("compose.bcc")}
 								</button>
 							)}
 						</>
@@ -589,10 +703,10 @@ export function ComposeForm({
 				{showCc && (
 					<RecipientInput
 						id={`${mode}-cc`}
-						label="Cc"
+						label={t("compose.cc")}
 						value={cc}
 						onChange={setCc}
-						placeholder="Carbon copy"
+						placeholder={t("compose.ccPlaceholder")}
 						disabled={loadingDraft}
 						autoFocus={!loadingDraft && cc.length === 0}
 					/>
@@ -600,45 +714,48 @@ export function ComposeForm({
 				{showBcc && (
 					<RecipientInput
 						id={`${mode}-bcc`}
-						label="Bcc"
+						label={t("compose.bcc")}
 						value={bcc}
 						onChange={setBcc}
-						placeholder="Blind carbon copy, hidden from other recipients"
+						placeholder={t("compose.bccPlaceholder")}
 						disabled={loadingDraft}
 						autoFocus={!loadingDraft && bcc.length === 0}
 					/>
 				)}
 				<div className="border-b border-neutral-100 px-4 py-1">
-					<Label htmlFor={`${mode}-subject`} className="sr-only">Subject</Label>
+					<Label htmlFor={`${mode}-subject`} className="sr-only">{t("compose.subject")}</Label>
 					<Input
 						id={`${mode}-subject`}
 						value={subject}
 						onChange={(event) => setSubject(event.target.value)}
-						placeholder="Subject"
+						placeholder={t("compose.subject")}
 						required
 						disabled={loadingDraft}
 						className="h-8 border-0 px-0 py-1 shadow-none focus-visible:ring-0"
 					/>
 				</div>
-				<Label htmlFor={`${mode}-text`} className="sr-only">Body</Label>
+				<Label htmlFor={`${mode}-text`} className="sr-only">{t("compose.body")}</Label>
 				<RichTextEditor
 					id={`${mode}-text`}
 					value={html}
 					onChange={setHtml}
 					quotedHtml={quotedHtml}
 					disabled={loadingDraft}
-					placeholder="Write your message"
+					placeholder={t("compose.bodyPlaceholder")}
 					footerContent={attachmentContent}
 					toolbarStart={
-						<>
-							<div className="flex items-center">
+						<div className="flex items-center max-md:contents">
+							<Button type="button" variant="secondary" size="sm" onClick={dismiss} className="md:hidden max-md:h-10 max-md:px-3.5 max-md:text-[15px]">
+								{t("common.cancel")}
+							</Button>
+							<div className="flex items-center max-md:order-last max-md:ml-auto">
 								<Button
 									type="submit"
 									size="sm"
 									disabled={loading || loadingDraft || !fromAddr}
-									className="rounded-r-none px-4"
+									className="rounded-r-none px-4 max-md:h-10 max-md:px-5 max-md:text-[15px]"
 								>
-									{loading ? "Preparing…" : scheduledAt ? "Schedule" : agentRevision !== null ? "Review send" : "Send"}
+									{loading ? t("compose.preparing") : scheduledAt ? t("compose.schedule") : agentRevision !== null ? t("compose.reviewSend") : t("compose.send")}
 								</Button>
 								<ScheduleSendMenu
 									disabled={loading || loadingDraft || !fromAddr}
@@ -652,7 +769,7 @@ export function ComposeForm({
 									}}
 								/>
 							</div>
-						</>
+						</div>
 					}
 					toolbarEnd={
 						<>
@@ -664,25 +781,25 @@ export function ComposeForm({
 								className="hidden"
 								onChange={(event) => addAttachments(event.target.files)}
 							/>
-							<Tooltip label={`Attach files (up to ${attachmentPolicy.maxMb} MB total). Files over 3 MB are sent as 30-day R2 download links.`}>
+							<Tooltip label={t("compose.attachTooltip", { max: attachmentPolicy.maxMb })}>
 								<button
 									type="button"
-									aria-label="Attach files"
+									aria-label={t("compose.attachFiles")}
 									onClick={() => attachmentInput.current?.click()}
 									disabled={loading || loadingDraft}
-									className="rounded-md p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 disabled:pointer-events-none disabled:opacity-50"
+									className="rounded-md p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 disabled:pointer-events-none disabled:opacity-50 max-md:px-2"
 								>
 									<Paperclip className="h-4 w-4" />
 								</button>
 							</Tooltip>
-							<span className="flex-1" />
-							<Tooltip label="Delete draft">
+							<span className="flex-1 max-md:hidden" />
+							<Tooltip label={t("compose.deleteDraft")}>
 								<button
 									type="button"
-									aria-label="Delete draft"
+									aria-label={t("compose.deleteDraft")}
 									onClick={() => void deleteDraftAndClose()}
 									disabled={loading || loadingDraft || deletingDraft}
-									className="rounded-md p-1.5 text-neutral-500 hover:bg-red-50 hover:text-red-600 disabled:pointer-events-none disabled:opacity-50"
+									className="rounded-md p-1.5 text-neutral-500 hover:bg-red-50 hover:text-red-600 disabled:pointer-events-none disabled:opacity-50 max-md:px-2"
 								>
 									<Trash2 className="h-4 w-4" />
 								</button>

@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { Menu } from "lucide-react";
 import type { ReactNode } from "react";
 import { useSidebar } from "./sidebar-state";
+import { useLanguage } from "./language-provider";
 
 export function SidebarAside({ children, className }: { children: ReactNode; className?: string }) {
 	const { mobile, mobileOpen, toggle } = useSidebar();
@@ -33,10 +34,11 @@ export function SidebarAside({ children, className }: { children: ReactNode; cla
 }
 
 export function MobileMenuButton({ className }: { className?: string }) {
+	const { t } = useLanguage();
 	const { mobile, mobileOpen, toggle } = useSidebar();
 	if (!mobile) return null;
 	return (
-		<button type="button" onClick={toggle} aria-label="Open menu" aria-expanded={mobileOpen} className={clsx("flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-neutral-600 hover:bg-neutral-200 md:hidden", className)}>
+		<button type="button" onClick={toggle} aria-label={t("navigation.openMenu")} aria-expanded={mobileOpen} className={clsx("flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-neutral-600 hover:bg-neutral-200 md:hidden", className)}>
 			<Menu size={20} />
 		</button>
 	);
@@ -47,7 +49,7 @@ export function MobileTopBar({ title }: { title?: string }) {
 	return (
 		<div className="flex h-16 shrink-0 items-center gap-2 pl-2 md:hidden">
 			<MobileMenuButton />
-			{title && <h2 className="min-w-0 max-w-[40vw] truncate text-base font-medium text-neutral-900">{title}</h2>}
+			{title && <p aria-hidden="true" className="min-w-0 max-w-[40vw] truncate text-base font-medium text-neutral-900">{title}</p>}
 		</div>
 	);
 }

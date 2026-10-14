@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsFetching } from "@tanstack/react-query";
 import { useBranding } from "@/components/branding-provider";
+import { useLanguage } from "@/components/language-provider";
 import { PageLoadingContext } from "@/components/page-loading";
 import { RouteLoadingBar } from "@/components/route-loading-bar";
 import type { LoadingTransitionProps } from "./loading-transition-types";
@@ -13,6 +14,7 @@ const MAXIMUM_DATA_WAIT = 10_000;
 let hasShownInitialLoadingTransition = false;
 
 export function LoadingTransition({ children, ready }: LoadingTransitionProps) {
+	const { t } = useLanguage();
 	const branding = useBranding();
 	const showInitialLoader = useRef(!hasShownInitialLoadingTransition).current;
 	const startedAt = useRef(Date.now());
@@ -93,17 +95,17 @@ export function LoadingTransition({ children, ready }: LoadingTransitionProps) {
 					</div>
 				)}
 				<div
-					aria-label="Loading"
-					aria-live="polite"
+					role="status"
 					className={`fixed inset-0 z-[100] flex items-center justify-center bg-[#f6f8fc] transition-opacity duration-300 ${
 						loaderVisible ? "opacity-100" : "pointer-events-none opacity-0"
 					}`}
 				>
-					<div className="flex w-64 flex-col items-center gap-6">
+					<span className="sr-only">{loaderVisible ? t("nav.loading") : ""}</span>
+					<div aria-hidden="true" className="flex w-64 flex-col items-center gap-6">
 						<img
 							src={iconUrl}
 							onError={() => setIconUrl("/icon-96.png")}
-							alt={`${branding.appName} icon`}
+							alt=""
 							className="h-20 w-20 rounded-2xl object-contain"
 						/>
 						<div className="w-full">

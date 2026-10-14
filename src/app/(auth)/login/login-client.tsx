@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Mail, ShieldCheck } from "lucide-react";
+import { useLanguage } from "@/components/language-provider";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { TurnstileField } from "@/components/auth/turnstile";
 import { submitLogin, submitMfaCode } from "./utils";
 
 export function LoginClient({ adding = false }: { adding?: boolean }) {
+  const { t } = useLanguage();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,7 +35,7 @@ export function LoginClient({ adding = false }: { adding?: boolean }) {
     try {
       const { ok, data } = await submitLogin(new FormData(e.currentTarget));
       if (!ok) {
-        setError(data.error ?? "Login failed");
+        setError(data.error ?? t("auth.loginFailed"));
         setTurnstileReset((value) => value + 1);
         return;
       }
@@ -45,8 +47,8 @@ export function LoginClient({ adding = false }: { adding?: boolean }) {
     } catch (error) {
       setError(
         error instanceof DOMException && error.name === "TimeoutError"
-          ? "Login timed out. Please try again."
-          : "Unable to reach the login service. Please try again.",
+          ? t("auth.loginTimeout")
+          : t("auth.loginUnreachable"),
       );
       setTurnstileReset((value) => value + 1);
     } finally {
@@ -62,7 +64,7 @@ export function LoginClient({ adding = false }: { adding?: boolean }) {
     try {
       const { ok, data } = await submitMfaCode(challengeToken, code);
       if (!ok) {
-        setError(data.error ?? "That code did not match");
+        setError(data.error ?? t("auth.codeMismatch"));
         // An expired challenge sends the user back to the password step.
         if (data.error?.includes("expired")) {
           setChallengeToken(null);
@@ -72,7 +74,7 @@ export function LoginClient({ adding = false }: { adding?: boolean }) {
       }
       finish(data.redirect);
     } catch {
-      setError("Unable to reach the login service. Please try again.");
+      setError(t("auth.loginUnreachable"));
     } finally {
       setLoading(false);
     }
@@ -82,12 +84,12 @@ export function LoginClient({ adding = false }: { adding?: boolean }) {
     return (
       <AuthShell
         icon={ShieldCheck}
-        title="Two-factor authentication"
-        description="Enter the 6-digit code from your authenticator app, or one of your recovery codes."
+        title={t("auth.mfaTitle")}
+        description={t("auth.mfaDescription")}
       >
         <form onSubmit={onSubmitCode} className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="code">Code</Label>
+            <Label htmlFor="code">{t("auth.code")}</Label>
             <Input
               id="code"
               name="code"
@@ -101,12 +103,12 @@ export function LoginClient({ adding = false }: { adding?: boolean }) {
             />
           </div>
           {error && (
-            <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <p role="alert" className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
               {error}
             </p>
           )}
           <Button type="submit" className="h-11 w-full rounded-full px-6 active:scale-[0.98]" disabled={loading}>
-            {loading ? "Verifying..." : "Verify"}
+            {loading ? t("auth.verifying") : t("auth.verify")}
           </Button>
           <button
             type="button"
@@ -117,7 +119,7 @@ export function LoginClient({ adding = false }: { adding?: boolean }) {
               setError(null);
             }}
           >
-            Back to sign in
+            {t("auth.backToSignIn")}
           </button>
         </form>
       </AuthShell>
@@ -127,29 +129,31 @@ export function LoginClient({ adding = false }: { adding?: boolean }) {
   return (
     <AuthShell
       icon={Mail}
-      title={adding ? "Add another account" : "Sign in"}
+      title={adding ? t("auth.addAnother") : t("auth.signIn")}
       description={
         adding
-          ? "Sign in to another account. You can switch between accounts from the account menu."
-          : "Open your mailbox and continue from the same inbox workspace."
+          ? t("auth.addDescription")
+          : t("auth.signInDescription")
       }
     >
       <form method="post" onSubmit={onSubmit} className="space-y-5">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t("auth.email")}</Label>
           <Input
             id="email"
             name="email"
             type="email"
             autoComplete="email"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "login-error" : undefined}
             required
           />
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("auth.password")}</Label>
             <Link href="/forgot-password" className="text-xs font-medium text-blue-600 hover:underline">
-              Forgot password?
+              {t("auth.forgotPassword")}
             </Link>
           </div>
           <Input
@@ -157,11 +161,13 @@ export function LoginClient({ adding = false }: { adding?: boolean }) {
             name="password"
             type="password"
             autoComplete="current-password"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "login-error" : undefined}
             required
           />
         </div>
         {error && (
-          <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <p id="login-error" role="alert" className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             {error}
           </p>
         )}
@@ -171,7 +177,7 @@ export function LoginClient({ adding = false }: { adding?: boolean }) {
           className="h-11 w-full rounded-full px-6 active:scale-[0.98]"
           disabled={loading}
         >
-          {loading ? "Signing in..." : "Sign in"}
+          {loading ? t("auth.signingIn") : t("auth.signIn")}
         </Button>
       </form>
     </AuthShell>

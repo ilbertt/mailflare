@@ -1,4 +1,13 @@
+import { defaultTranslator } from "@/lib/i18n/utils";
 import { authFetch } from "@/lib/auth/client";
+
+/** A rejected response, keeping the parsed body so callers can read fields beyond `error`. */
+export class ApiError extends Error {
+	constructor(message: string, readonly data: unknown) {
+		super(message);
+		this.name = "ApiError";
+	}
+}
 
 export async function requestJson<T>(url: string, method: string, body?: unknown): Promise<T> {
 	const response = await authFetch(url, {
@@ -8,7 +17,7 @@ export async function requestJson<T>(url: string, method: string, body?: unknown
 		cache: "no-store",
 	});
 	const data = (await response.json()) as T & { error?: string };
-	if (!response.ok) throw new Error(data.error ?? "Request failed");
+	if (!response.ok) throw new ApiError(data.error ?? defaultTranslator("domains.requestFailed"), data);
 	return data;
 }
 
@@ -42,6 +51,6 @@ export async function runReceivingSetup(domainId: string, provider: "cloudflare"
 		if (!confirmMxReplacement(response, data)) return false;
 		({ response, data } = await call(true));
 	}
-	if (!response.ok) throw new Error(data.error ?? "Setup failed");
+	if (!response.ok) throw new Error(data.error ?? defaultTranslator("domains.setupFailed"));
 	return true;
 }
